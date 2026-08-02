@@ -34,14 +34,28 @@
  *                its own: never used live, downloaded once and kept local.
  *                See lib/geocode.ts.
  *  - threat:     Free public abuse / hijacked-block feeds. Stored in
- *                threat_ranges and joined at query time. No source is wired
- *                up here by default — Spamhaus DROP/EDROP, the obvious
- *                candidate, is free to use but its redistribution terms
- *                aren't clear enough to bulk-ingest for a commercial
- *                product without a paid Spamhaus Technology licence; see
- *                SOURCES.md. The table and lookup path stay in place so a
- *                deployment that has that licence (or another threat feed
- *                with clear terms) can populate it without any schema change.
+ *                threat_ranges and joined at query time. Spamhaus DROP/
+ *                EDROP, the obvious first candidate, is free to use but its
+ *                redistribution terms aren't clear enough to bulk-ingest for
+ *                a commercial product without a paid Spamhaus Technology
+ *                licence; see SOURCES.md. FireHOL's blocklist-ipsets
+ *                (github.com/firehol/blocklist-ipsets) was investigated as
+ *                the obvious broad aggregator and deliberately NOT wired up
+ *                either — every individual list checked there is either
+ *                Spamhaus/bogons under the hood, non-commercial-only
+ *                (dshield: CC BY-NC-SA), explicitly restrictive
+ *                (greensnow: "reproduction or republication strictly
+ *                prohibited"; botvrij: "cannot resell the data"), or states
+ *                no terms at all — see SOURCES.md's "Layer 6" section for
+ *                the full list of what was checked. abuse.ch's Feodo
+ *                Tracker is wired up instead: its own terms are an explicit,
+ *                unambiguous CC0 grant, distinct from — and narrower than —
+ *                what FireHOL would have provided. abuse.ch's URLhaus was
+ *                evaluated alongside it and NOT added: URLhaus's own
+ *                download files point at the same "commercial use may
+ *                require a paid subscription" terms as the abuse.ch/
+ *                Spamhaus platform API, the same ambiguity Spamhaus itself
+ *                was excluded for.
  *  - special-purpose: IANA's IPv4/IPv6 special-purpose address registries —
  *                the static list of private/loopback/documentation/multicast/
  *                etc. ranges (RFC 6890 for v4, RFC 6890+RFC 4291 for v6).
@@ -118,6 +132,7 @@ export type EnrichmentParser =
   | "azure-service-tags-json"
   | "mullvad-relays-json"
   | "rpki-vrp-json"
+  | "feodotracker-json"
   | "asn-reach-sql"
   | "neighborhood-sql"
   | "asn-profile-sql";
@@ -750,6 +765,22 @@ export const KNOWN_ENRICHMENT_SOURCES: EnrichmentSourceConfig[] = [
     parser: "rpki-vrp-json",
     source: "rpki-client",
     license: { name: "Public validator output", attributionRequired: false },
+  },
+  {
+    id: "feodotracker",
+    displayName: "abuse.ch Feodo Tracker (botnet C2 IPs)",
+    description:
+      "Currently-tracked botnet command-and-control server IPs (Dridex, Emotet, QakBot, and other Feodo-family malware). Deliberately the non-aggressive variant — Feodo Tracker's own page recommends against the aggressive/historical one, which carries a materially higher false-positive rate as addresses get reused. See enrichment-sources.ts's header comment for why this is here instead of FireHOL, and why URLhaus (also abuse.ch) is not.",
+    kind: "threat",
+    url: registry.enrichment["feodotracker"]!,
+    parser: "feodotracker-json",
+    source: "abuse.ch-feodotracker",
+    category: "malware-c2",
+    license: {
+      name: "CC0",
+      attributionRequired: false,
+      note: "Feodo Tracker's own terms of service state datasets may be \"used for both, commercial and non-commercial purpose without any limitations (CC0)\" — an explicit, dataset-specific grant, distinct from the general abuse.ch platform API terms (which restrict commercial use without a subscription and are why URLhaus, on the same platform, is NOT ingested here).",
+    },
   },
   {
     // Deliberately last: it aggregates bgp_origin_ranges, so on a full run it

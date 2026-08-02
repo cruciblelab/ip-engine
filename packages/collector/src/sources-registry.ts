@@ -100,6 +100,10 @@ export const DEFAULT_SOURCES_REGISTRY: SourcesRegistry = {
     "azure-ip-ranges": "https://www.microsoft.com/en-us/download/details.aspx?id=56519",
     "mullvad-relays": "https://api.mullvad.net/www/relays/all/",
     "rpki-vrp": "https://console.rpki-client.org/vrps.json",
+    // abuse.ch Feodo Tracker's non-aggressive blocklist — deliberately not
+    // the "aggressive" variant, which Feodo Tracker's own page warns has a
+    // materially higher false-positive rate from address reuse/recycling.
+    "feodotracker": "https://feodotracker.abuse.ch/downloads/ipblocklist.json",
   },
 };
 

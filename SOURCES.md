@@ -209,14 +209,61 @@ published, public API meant for exactly this kind of consumption:
 
 ## Layer 6 — Threat / abuse signal
 
-- **Threat feed** — no source is wired up by default. Spamhaus DROP/EDROP
-  was used here previously: free to use, but its redistribution terms
-  aren't clear enough to bulk-ingest for a commercial product without a
-  paid Spamhaus Technology licence (see "Commercial use" below), so it was
-  removed rather than shipped with an unresolved question attached. The
-  `threat_ranges` table and lookup path (`threat` feature) stay in place —
-  a deployment with that licence, or another feed with clear terms, can
-  populate it with no schema change.
+- **Threat feed — `threat_ranges` is populated again, by abuse.ch Feodo
+  Tracker.** Spamhaus DROP/EDROP was used here previously: free to use, but
+  its redistribution terms aren't clear enough to bulk-ingest for a
+  commercial product without a paid Spamhaus Technology licence (see
+  "Commercial use" below), so it was removed. This session investigated
+  **FireHOL's blocklist-ipsets** (github.com/firehol/blocklist-ipsets) as
+  the obvious broad replacement and deliberately did **not** wire it up —
+  every candidate list checked there fails the same bar Spamhaus did:
+    - `firehol_level1`/`level2`/`level3` are themselves composites that
+      include `spamhaus_drop` and/or `fullbogons` (Team Cymru — see "not in
+      scope" note below) directly, or `dshield` (SANS ISC — **CC BY-NC-SA,
+      non-commercial only**, the same problem class as the CAIDA AS-Rank
+      data this project already excluded for the same reason).
+    - `greensnow` states outright "reproduction or republication strictly
+      prohibited". `botvrij` states "you cannot resell the data... as part
+      of a larger package". `blocklist.de`, `bruteforceblocker` (danger.rulez.sk),
+      CINS/`ciarmy`, and Emerging Threats state no redistribution/commercial
+      terms at all — the exact "ambiguous, so excluded" bucket Spamhaus
+      itself is in.
+    - The repository itself carries no license file and its own README
+      says as much: "a few of these lists may have special licences
+      attached... check their source site" — there is no single license to
+      point to for "FireHOL" as a whole, only per-upstream-source terms,
+      none of which cleared the bar on inspection.
+
+  **abuse.ch's Feodo Tracker is wired up instead** (`feodotracker` source,
+  `feodotracker-json` parser) — narrower than FireHOL would have been
+  (currently/recently-active botnet C2 addresses only: Dridex, Emotet,
+  QakBot, and other Feodo-family malware — a handful to a few dozen rows,
+  not thousands), but its own terms of service are an explicit,
+  dataset-specific **CC0** grant ("used for both, commercial and
+  non-commercial purpose without any limitations"), unambiguous in a way
+  nothing else checked this session was. Deliberately the *non-aggressive*
+  blocklist — Feodo Tracker's own page recommends against the aggressive/
+  historical variant for exactly the false-positive reason Mullvad already
+  excludes inactive relays here (a years-stale "C2" IP has likely been
+  reassigned to someone ordinary since). Verified end to end on real data:
+  5 rows ingested, and `50.16.16.211` (a QakBot C2 in the feed) correctly
+  came back `is_threat: true` / `risk.level: "medium"` from both
+  `ip_intel` and `ip-insight lookup` — confirming the fix, not just the
+  ingest.
+
+  **abuse.ch's URLhaus was evaluated alongside Feodo Tracker and NOT
+  added.** Its own CSV/JSON downloads carry the header
+  `# Terms Of Use: https://urlhaus.abuse.ch/api/`, which states commercial
+  use "may require a paid subscription for the enhanced abuse.ch commercial
+  API" — the same ambiguous-for-a-commercial-product terms Spamhaus was
+  excluded for (abuse.ch and Spamhaus are the same organisation today).
+  Feodo Tracker's page is explicit that its CC0 grant is specific to Feodo
+  Tracker's own datasets, not a blanket abuse.ch policy, so the two
+  genuinely differ rather than this being an inconsistent call.
+
+  The `threat_ranges` table and lookup path (`threat` feature) stay
+  otherwise unchanged — a deployment with a Spamhaus/URLhaus licence, or
+  another feed with clear terms, can still add to it with no schema change.
 - **Abuse contacts** — who to notify about traffic from a prefix. Used to
   be resolved from a RIPE bulk-whois batch scan (`inetnum` → `abuse-c:`
   handle → `role` object's `abuse-mailbox:`); now a live, per-address RDAP
@@ -632,9 +679,10 @@ under that different use case.
 | LACNIC bulk whois | Public, LACNIC terms of use |
 | GeoNames | CC BY 4.0 (attribution required — see geonames.org) |
 | AWS / GCP / Cloudflare / Oracle / Fastly IP ranges | Published by each provider for public use |
-| DigitalOcean geofeed | RFC 8805, published by DigitalOcean |
+| DigitalOcean / Linode geofeeds | RFC 8805, published by DigitalOcean / Linode |
 | Direct-URL geofeeds (Google, NTT, Cogent, Verizon, T-Mobile, Netflix, Vultr, Civo, Schwarz IT, Telia) | RFC 8805, each published by the operator itself at a fixed URL — no RIR involved |
 | ASN reach metrics | Derived locally from the RIS data above — no separate upstream license |
+| Feodo Tracker (abuse.ch) botnet C2 list | CC0 — dataset-specific grant, see "Layer 6" above |
 | Azure Service Tags | Published by Microsoft for public consumption |
 | Tor exit list | Published by the Tor Project for exactly this purpose |
 | Verified-bot ranges (12 crawlers) | Published by each operator specifically so third parties can verify the crawler's identity |
@@ -649,7 +697,10 @@ for their respective bulk files. Spamhaus DROP/EDROP and RIPE/APNIC bulk
 whois for geofeeds/abuse-contacts were removed from this project (see
 "Threat intelligence and abuse contacts" and "Geolocation feeds" above) —
 they are not wired up and nothing here depends on them; re-adding Spamhaus
-would require a Spamhaus Technology commercial license first.
+would require a Spamhaus Technology commercial license first. FireHOL's
+blocklist-ipsets and abuse.ch's URLhaus were investigated and deliberately
+left unwired for the same class of reason — see "Layer 6" above for what
+was checked in each.
 
 ### RDAP-based live discovery
 
@@ -684,7 +735,7 @@ commercially:
 | RIPE RIS whois dumps / `asn.txt` | Yes | RIPE NCC terms of use |
 | LACNIC bulk whois | Yes | LACNIC terms of use |
 | GeoNames | Yes | CC BY 4.0 — **attribution is required** and must survive redistribution |
-| AWS / GCP / Cloudflare / DigitalOcean / Oracle / Fastly ranges | Yes | Published by each provider for public consumption |
+| AWS / GCP / Cloudflare / DigitalOcean / Linode / Oracle / Fastly ranges | Yes | Published by each provider for public consumption |
 | Direct-URL geofeeds — see the per-publisher breakdown below | Mostly yes, one conditional | Each self-published at a fixed URL; no RIR lookup, no rate limit. Terms were checked individually rather than assumed — **Netflix's carries a use restriction**, see below. A few commonly-cited publishers (F5, Telstra, Cloudflare, AWS, Azure) were researched but not added: no fixed URL could be confirmed, don't assume one. |
 | IANA special-purpose registries | Yes | Public registry data |
 | Azure Service Tags | Yes | Published by Microsoft for public use |
@@ -694,6 +745,7 @@ commercially:
 | Abuse contact / geofeed (live RDAP) | Yes, under the API-only assumption above | Per-query RDAP lookups, not a bulk redistribution product; discovered geofeed CSVs are third-party URLs — each publisher's own terms apply to their feed once fetched |
 | Abuse contact (security.txt, RFC 9116) | Yes | Bonus fallback only, tried after RDAP comes back empty; self-published on the organisation's own domain, so no RIR/registry terms apply at all. Coverage is low by nature: an arXiv-cited measurement (Feb 2025) found adoption under 1-2% of domains generally, and it needs a reverse-DNS hit first — a miss here is normal, never a wrong answer. |
 | RPKI validated ROA payloads | Yes | Public validator output |
+| Feodo Tracker (abuse.ch) botnet C2 list | Yes | CC0 — the operator's own terms state commercial and non-commercial use without limitation. **Not** the same grant as abuse.ch's URLhaus, checked and left out — see "Layer 6" above. |
 | ASN reach metrics, risk score, connection-type guess | Yes | Computed here; no upstream dependency |
 
 ### Direct-URL geofeed publishers, individually

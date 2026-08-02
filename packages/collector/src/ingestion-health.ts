@@ -86,6 +86,12 @@ const ENRICHMENT_MINIMUMS: Record<string, number> = {
   // Derived from bgp_origin_ranges, so this can only come back low if the
   // BGP sources themselves failed — a real run yields ~85K originating ASNs.
   "asn-reach": 30_000,
+  // Feodo Tracker's blocklist is small by design (currently/recently active
+  // C2 servers only, not a historical archive — see enrichment-sources.ts).
+  // A real run saw 5; the point of this floor is only catching "came back
+  // at 0 because the upstream was unreachable", not normal day-to-day
+  // fluctuation in how many C2s are currently tracked.
+  "feodotracker": 1,
 };
 
 async function latestCollectionCount(rir: string): Promise<number | null> {

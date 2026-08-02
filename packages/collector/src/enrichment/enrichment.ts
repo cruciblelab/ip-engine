@@ -699,6 +699,9 @@ async function runSource(
       case "rpki-vrp-json":
         await ingestRpkiVrp(job, source, response);
         break;
+      case "feodotracker-json":
+        await ingestFeodoTracker(job, source, response);
+        break;
       default:
         throw new Error(`Unknown parser ${source.config.parser}`);
     }
@@ -2194,6 +2197,61 @@ async function ingestRpkiVrp(
   await flushRpkiBatches(batch, source, job);
 }
 
+/**
+ * abuse.ch Feodo Tracker — a flat JSON array of currently/recently-seen
+ * botnet C2 addresses (`{ip_address, port, status, malware, ...}`), the
+ * smallest and simplest shape ingested here. `status` ("online"/"offline")
+ * is kept as-is rather than filtered to online-only: an address seen
+ * offline in the last few days is still meaningfully more suspicious than
+ * one never observed at all, and the whole file is small enough (tens of
+ * rows, not thousands) that this isn't a false-positive-volume concern the
+ * way an unbounded historical list would be — see enrichment-sources.ts's
+ * comment on why the "aggressive" (multi-year historical) variant is
+ * deliberately not used instead.
+ */
+async function ingestFeodoTracker(
+  job: ActiveJob,
+  source: SourceRuntime,
+  response: Response,
+): Promise<void> {
+  const tag = source.config.source ?? source.config.id;
+  const text = await readAllText(response, source);
+
+  let entries: Array<{ ip_address?: string; malware?: string }>;
+  try {
+    entries = JSON.parse(text);
+  } catch (err) {
+    throw new Error(
+      `Failed to parse Feodo Tracker JSON: ${err instanceof Error ? err.message : String(err)}`,
+    );
+  }
+  if (!Array.isArray(entries)) {
+    throw new Error("Feodo Tracker JSON was not an array — the feed's shape may have changed.");
+  }
+
+  await db.delete(threatRangesTable).where(eq(threatRangesTable.source, tag));
+
+  const batch: Array<typeof threatRangesTable.$inferInsert> = [];
+  for (const entry of entries) {
+    if (job.shouldStop) {
+      source.status = "stopped";
+      break;
+    }
+    const ip = entry.ip_address;
+    const family = ip ? isIpAddress(ip) : 0;
+    if (!ip || family === 0) {
+      source.recordsSkipped++;
+      job.totalSkipped++;
+      continue;
+    }
+    batch.push({
+      network: family === 4 ? `${ip}/32` : `${ip}/128`,
+      source: tag,
+      category: entry.malware ?? source.config.category ?? null,
+    });
+  }
+  await flushThreatBatches(batch, source, job);
+}
 
 /* ------------------------------------------------------------------------ */
 /* Flushers                                                                  */
@@ -2240,6 +2298,26 @@ async function flushRpkiBatches(
       job.totalIngested += slice.length;
     } catch (err) {
       logger.warn({ err }, "rpki batch insert failed");
+      source.recordsSkipped += slice.length;
+      job.totalSkipped += slice.length;
+    }
+    await persistSource(source);
+  }
+}
+
+async function flushThreatBatches(
+  rows: Array<typeof threatRangesTable.$inferInsert>,
+  source: SourceRuntime,
+  job: ActiveJob,
+): Promise<void> {
+  for (let i = 0; i < rows.length; i += BATCH_SIZE) {
+    const slice = rows.slice(i, i + BATCH_SIZE);
+    try {
+      await db.insert(threatRangesTable).values(slice).onConflictDoNothing();
+      source.recordsIngested += slice.length;
+      job.totalIngested += slice.length;
+    } catch (err) {
+      logger.warn({ err }, "threat batch insert failed");
       source.recordsSkipped += slice.length;
       job.totalSkipped += slice.length;
     }

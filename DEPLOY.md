@@ -459,14 +459,23 @@ Found while spot-checking real IPs against `ip_intel` after the first
 phone `flatten --mode materialized` (worth repeating after any future
 build that feels off):
 
-- **`threat_flagged` / `is_threat` reading 0 for everything is expected,
-  not a bug.** `threat_ranges` has no source wired up by default —
-  Spamhaus DROP/EDROP (the obvious feed) has redistribution terms unclear
-  enough to not bulk-ingest without a paid licence; see
-  `enrichment-sources.ts`'s own comment and SOURCES.md. The table and
-  `ip_intel` join are ready; nothing populates them until a licensed (or
-  clearly-licensed free) threat feed is wired up. See the "candidate data
-  sources" list below.
+- **`is_threat` reading 0 for everything was expected, not a bug — fixed
+  this session.** `threat_ranges` had no source wired up: Spamhaus DROP/
+  EDROP (the obvious feed) has redistribution terms unclear enough to not
+  bulk-ingest without a paid licence; see `enrichment-sources.ts`'s own
+  comment and SOURCES.md. FireHOL's blocklist-ipsets was investigated as
+  the broad replacement and rejected — every list checked there is either
+  Spamhaus/bogons under the hood, non-commercial-only, or explicitly
+  restrictive (full breakdown in SOURCES.md's "Layer 6" section). abuse.ch
+  Feodo Tracker (CC0, explicit) is wired up instead — narrower than FireHOL
+  would have been, but real: confirmed on real data,
+  `ip-insight lookup 50.16.16.211` (a QakBot C2 in the live feed) now
+  returns `is_threat: true`, `risk.level: "medium"`, both from `ip_intel`
+  and from a live lookup. A materialized `ip_intel` built before this
+  change will still read 0 for `is_threat` everywhere until the next
+  `ip-insight flatten --mode materialized --refresh` (or the next scheduled
+  `enrich`, which refreshes it automatically) — same "stale until rebuilt"
+  shape as the anycast-seeding fix above, not a new kind of bug.
 - **A `geo_source` mismatch between `ip_intel` and `ip-insight lookup` for
   the same IP, right after running `lookup` — expected, not a bug.**
   Geofeed discovery beyond the known batch sources runs live, per-address,
@@ -507,13 +516,22 @@ before starting any of it, priorities may have shifted.
    `ConnectionType` and a fixed AS14593 allowlist checked by ASN number
    (not name text — Starlink's holder name varies across whois data, the
    ASN doesn't) in `connection-type.ts`, ahead of the text-pattern loop.
-4. **FireHOL IP Lists** (github.com/firehol/blocklist-ipsets) — the actual
-   fix for `threat_flagged` reading 0; per-list licences stated explicitly,
-   mostly open. Real effort (new parser), real payoff (closes an expected-
-   but-missing feature).
-5. **abuse.ch feeds** (Feodo Tracker, URLhaus) — malware C2/distribution
-   IPs, a specific complement to FireHOL's broader aggregation. Do after
-   FireHOL, not instead of it.
+4. **FireHOL IP Lists — investigated, deliberately not added.** This
+   session's own earlier note above ("per-list licences stated explicitly,
+   mostly open") turned out not to hold up under actual verification: the
+   repo has no license file, its README says as much, and every individual
+   list checked was either Spamhaus/bogons under the hood, non-commercial-
+   only (dshield), or explicitly restrictive (greensnow, botvrij) — none
+   cleared this project's own bar. Full list of what was checked in
+   SOURCES.md's "Layer 6" section. Lesson for next time: "some are more
+   open than others" needs to mean checking each one at the primary source,
+   not trusting a one-line summary (including this document's own).
+5. **abuse.ch feeds — done, and became the actual `is_threat` fix in
+   FireHOL's place.** Feodo Tracker added (CC0, explicit, verified end to
+   end on real data). URLhaus checked and left out: its own download files
+   point at the same "commercial use may require a paid subscription" terms
+   as the abuse.ch/Spamhaus platform API (abuse.ch and Spamhaus are the same
+   organisation now) — the same ambiguity Spamhaus itself was excluded for.
 6. **More VPN / hosting providers — checked, one added, three declined.**
    Linode publishes a real RFC 8805 geofeed (`geoip.linode.com`) — added,
    reusing the DigitalOcean geofeed parser as-is, 5,445 rows on a real run.
