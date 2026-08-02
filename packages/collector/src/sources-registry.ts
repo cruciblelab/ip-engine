@@ -46,6 +46,10 @@ export const DEFAULT_SOURCES_REGISTRY: SourcesRegistry = {
     "geonames-cities": "https://download.geonames.org/export/dump/cities5000.zip",
     "lacnic-whois-city": "https://ftp.lacnic.net/lacnic/dbase/lacnic.db.gz",
     "digitalocean-geofeed": "https://digitalocean.com/geo/google.csv",
+    // Linode/Akamai Connected Cloud's self-published RFC 8805 geofeed for
+    // its own datacenter ranges — same dual-purpose shape as DigitalOcean's
+    // above (feeds cloud_ranges and geofeed_ranges from one file).
+    "linode-geofeed": "https://geoip.linode.com/",
     // Direct-URL RFC 8805 geofeeds: fixed addresses the publisher itself
     // serves, discovered via research rather than RIR RDAP — no RIR
     // involvement, no rate limit, see SOURCES.md.

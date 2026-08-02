@@ -1024,10 +1024,13 @@ async function flushBgpOriginBatch(
 }
 
 /**
- * DigitalOcean publishes their own datacenter ranges in exactly the RFC 8805
- * geofeed CSV shape (`prefix,country,region,city,postal`), so one file feeds
- * two tables: cloud_ranges (Layer 4 — this is a datacenter) and
+ * DigitalOcean (and, sharing this same parser, Linode — see its entry in
+ * enrichment-sources.ts) publishes its own datacenter ranges in exactly the
+ * RFC 8805 geofeed CSV shape (`prefix,country,region,city,postal`), so one
+ * file feeds two tables: cloud_ranges (Layer 4 — this is a datacenter) and
  * geofeed_ranges (Layer 2 — precise facility city, operator-published).
+ * `source.config.provider` is what tells this generic function which
+ * provider's rows it's replacing on each run.
  */
 async function ingestDigitalOceanGeofeedCsv(
   job: ActiveJob,

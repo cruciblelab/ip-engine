@@ -58,6 +58,9 @@ const ENRICHMENT_MINIMUMS: Record<string, number> = {
   "ris-whois-ipv4": 400_000,
   "ris-whois-ipv6": 80_000,
   "digitalocean-geofeed": 300,
+  // Real run: ~5,400 rows (Linode's geofeed is much larger than
+  // DigitalOcean's — more regions, more granular sub-prefixes per region).
+  "linode-geofeed": 1_000,
   "aws-ip-ranges": 1_000,
   "gcp-ip-ranges": 300,
   "cloudflare-v4": 5,

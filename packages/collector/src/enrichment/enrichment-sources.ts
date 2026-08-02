@@ -280,6 +280,18 @@ export const KNOWN_ENRICHMENT_SOURCES: EnrichmentSourceConfig[] = [
     license: { name: "Published for public consumption", attributionRequired: false },
   },
   {
+    id: "linode-geofeed",
+    displayName: "Linode IP geofeed",
+    description:
+      "Linode's (Akamai Connected Cloud) self-published RFC 8805 geofeed for their own datacenter ranges. Same dual-purpose shape as the DigitalOcean geofeed above: populates cloud_ranges (Layer 4) and geofeed_ranges (Layer 2) from one file, reusing the same parser.",
+    kind: "geofeed",
+    url: registry.enrichment["linode-geofeed"]!,
+    parser: "digitalocean-geofeed-csv",
+    provider: "linode",
+    confidence: 0.85,
+    license: { name: "Published for public consumption", attributionRequired: false },
+  },
+  {
     id: "google-geofeed",
     displayName: "Google Cloud IP geofeed",
     description:

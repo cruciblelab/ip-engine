@@ -514,10 +514,17 @@ before starting any of it, priorities may have shifted.
 5. **abuse.ch feeds** (Feodo Tracker, URLhaus) — malware C2/distribution
    IPs, a specific complement to FireHOL's broader aggregation. Do after
    FireHOL, not instead of it.
-6. **More VPN providers** (ProtonVPN, Cloudflare WARP) / **more hosting
-   providers** (Hetzner, OVH, Linode) — cheap, same shape as Mullvad/AWS/
-   GCP already in the codebase, incremental accuracy improvement on
-   existing signals.
+6. **More VPN / hosting providers — checked, one added, three declined.**
+   Linode publishes a real RFC 8805 geofeed (`geoip.linode.com`) — added,
+   reusing the DigitalOcean geofeed parser as-is, 5,445 rows on a real run.
+   ProtonVPN, Cloudflare WARP, Hetzner, and OVH were all checked and none
+   publish a genuine first-party feed the way Mullvad/AWS/GCP/DigitalOcean/
+   Linode do (ProtonVPN's unauthenticated API was shut off and Proton says
+   so explicitly; Cloudflare doesn't publish WARP egress ranges at all;
+   Hetzner/OVH have no published IP-range file, only unconfirmed third-party
+   mirrors) — see SOURCES.md's Layer 4/5 sections for the specifics of what
+   was checked. Not added, matching the Spamhaus precedent: no citable
+   first-party source, so no feed, not a guess dressed up as one.
 7. **Team Cymru Bogon list** — probably **not** worth adding: likely
    substantially redundant with data already collected (`ip_blocks.status
    = 'available'` from the RIR files plus the IANA special-purpose

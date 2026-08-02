@@ -137,12 +137,27 @@ distinctly rather than blended into the geo answer.
 - Oracle Cloud (`docs.oracle.com/en-us/iaas/tools/public_ip_ranges.json`)
 - Fastly (`api.fastly.com/public-ip-list`)
 - DigitalOcean (via its geofeed, also feeding Layer 2)
+- Linode / Akamai Connected Cloud (`geoip.linode.com`, same dual-purpose RFC
+  8805 geofeed shape as DigitalOcean — reuses that parser, one file feeding
+  both this table and Layer 2's `geofeed_ranges`. Verified on a real run:
+  5,445 rows.)
 
 Named hosting/VPS providers whose ASN name carries only a brand, not a
 generic word like "hosting" or "cloud" (Hetzner, OVH, Vultr, DigitalOcean,
 Contabo, LeaseWeb, Linode, and others) are recognised from data this
 project already has — `bgp_origin_ranges` + `asn_blocks` — no separate feed
 needed; see the connection-type heuristic below.
+
+**Hetzner and OVH checked this session, deliberately not added as a
+separate cloud_ranges feed.** Neither publishes a first-party IP-range
+file the way AWS/GCP/DigitalOcean/Linode do (`hetzner.com/ip-ranges` and
+similar guessed paths 404; OVH's public API (`api.ovh.com/1.0/ip.json`) is
+customer IP-block management, not a published list of OVH's own
+infrastructure ranges). The only candidates found were third-party
+BGP-derived mirrors of unconfirmed accuracy and no stated license — not
+"published by the operator for public consumption", the bar every other
+row in this table clears. Both are already covered, at ASN-name-heuristic
+precision, by the pattern above.
 
 ## Layer 5 — Anonymity services
 
@@ -165,6 +180,32 @@ They route through real consumer devices, publish nothing, and are
 identified only by behavioural telemetry across many customers' live
 traffic — a different kind of system than a bulk-data database. Absence
 from this layer is not evidence of absence.
+
+**ProtonVPN and Cloudflare WARP checked this session, deliberately not
+added.** Both fail the same test Mullvad passes — a genuine, operator-
+published, public API meant for exactly this kind of consumption:
+
+- **ProtonVPN** did once have an unauthenticated `api.protonvpn.ch/vpn/
+  logicals` endpoint that third-party projects scraped for exactly this
+  purpose, but Proton has since locked it behind app-version/session
+  requirements and explicitly said so: "what you were using previously was
+  not officially supported." No replacement public list exists. The
+  GitHub mirrors that still circulate are built by continuing to poll the
+  now-unsupported private client API, not from anything Proton publishes.
+- **Cloudflare WARP** has no published egress-IP list at all — the one
+  concrete IPv4 range findable in Cloudflare's own docs
+  (`162.159.192.0/24`) appears in a *firewall-allowlist* context alongside
+  other ranges the client connects *to* (WireGuard/MASQUE endpoints), not
+  a confirmed customer-facing egress range, and Cloudflare's own blog post
+  on how WARP assigns exit IPs ("GeoExit") explicitly describes the
+  allocation strategy without disclosing the ranges. Cloudflare's docs are
+  explicit that Zero Trust client egress IPs specifically are *not*
+  published ("contact your account team" for a dedicated one). Guessing
+  which of Cloudflare's general anycast edge ranges (already ingested as
+  the `cloudflare-v4`/`cloudflare-v6` cloud source) WARP traffic actually
+  egresses through, without a citable confirmation, would risk exactly the
+  kind of wrong-not-just-incomplete signal this project avoids elsewhere
+  (e.g. Mullvad excluding inactive relays for the same reason).
 
 ## Layer 6 — Threat / abuse signal
 
