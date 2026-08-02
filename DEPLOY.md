@@ -497,11 +497,39 @@ licence-safe shape as the Tor/cloud/bot sources already in the codebase)
 or have clear open licences. None of this is committed — revisit this list
 before starting any of it, priorities may have shifted.
 
-1. **Typed history change events** (`PrefixChanged`/`ASNChanged`/
-   `GeoChanged`/`ThreatChanged`) — no new data needed, `ops.prefix_history`
-   already holds the old/new record pair; this is decomposing the existing
-   whole-record diff into typed fields. Directly extends the history
-   feature that's the whole point of turning `historyCaptureEnabled` on.
+1. **Typed history change events — done.** Added `diffHistoryRecords()` /
+   `changeEvents()` (`packages/collector/src/history-diff.ts` +
+   `history.ts`), plus `ip-insight history events <ip>`. No new storage — it
+   reads `historyTimeline()`'s existing old/new record pairs and classifies
+   which of four field groups moved: `PrefixChanged` (rir/rir_status/
+   network_name/registered_date — registration facts), `ASNChanged` (asn/
+   asn_name/asn_type), `GeoChanged` (country/city/region/postal/lat/lon/
+   geo_source), `ThreatChanged` (is_threat/threat_source/threat_category).
+   A single capture can emit more than one event type — e.g. a renumbering
+   that also moves the ASN emits `PrefixChanged` and `ASNChanged` together
+   from the same capture, verified below. Fields outside these four
+   groups (cloud/anycast/RPKI/verified-bot/anonymity/abuse-contact/
+   asn-reach) intentionally produce no typed event — they still show up in
+   the underlying whole-record `history timeline`/`history at` diff, same as
+   before, just not decomposed, because nothing asked for that.
+
+   The pure classification logic (`diffHistoryRecords`) is deliberately
+   split into its own file with no `@workspace/db` import specifically so it
+   unit-tests without `DATABASE_URL` set — `history.ts` throws at module
+   load otherwise (`db`'s own import does), which would have made every test
+   in the file an integration test by accident. Covered by
+   `packages/collector/src/history-diff.test.ts` (6 cases: no-op, single
+   group, cross-group isolation, multi-group in one capture, missing-field
+   handling, `PrefixChanged` vs `ASNChanged` distinctness).
+
+   Verified against a real two-capture cycle, not just the unit tests: with
+   `ipIntelMode: materialized` and a baseline already captured, changing a
+   Linode geofeed row's country/city and re-capturing produced exactly one
+   `GeoChanged` event with the real before/after values; changing a
+   `threat_ranges.category` produced exactly one `ThreatChanged` event;
+   changing a synthetic prefix's ASN and RIR status together produced both
+   `ASNChanged` and `PrefixChanged` from the same capture, correctly kept as
+   two separate events rather than one blob.
 2. **More verified-bot feeds — done.** Re-checked Anthropic, Meta, and
    Common Crawl at their primary sources rather than trusting this list:
    Anthropic (`claude.com/crawling/bots.json`, one combined feed for

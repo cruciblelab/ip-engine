@@ -25,10 +25,15 @@
 import { sql, desc, eq } from "drizzle-orm";
 import { db, ipIntelState, historyCapturesTable } from "@workspace/db";
 import { logger } from "@workspace/shared";
+import {
+  diffHistoryRecords,
+  type PrefixRecord,
+  type HistoryChangeEvent,
+  type HistoryChangeEventType,
+} from "./history-diff";
 
-/** The full flattened record for a prefix, everything `ip_intel` carries
- * except the prefix itself (which is already the row's key). */
-export type PrefixRecord = Record<string, unknown>;
+export type { PrefixRecord, HistoryChangeEvent, HistoryChangeEventType };
+export { diffHistoryRecords };
 
 export interface CaptureResult {
   changed: number;
@@ -196,6 +201,33 @@ export async function historyTimeline(ip: string): Promise<HistoryRow[]> {
     validTo: r.valid_to ? new Date(r.valid_to) : null,
     record: r.record,
   }));
+}
+
+/**
+ * Every typed change event for prefixes covering `ip`, oldest first — the
+ * same old/new record pair `ops.prefix_history` already stores, decomposed
+ * by `diffHistoryRecords()` (see history-diff.ts) into the four facts a
+ * consumer actually asks about instead of two opaque JSON blobs they'd
+ * otherwise have to diff themselves.
+ *
+ * `historyTimeline()`'s records are diffed pairwise instead of read as
+ * opaque blobs. A pair is only diffed when both sides share the same
+ * `network`: `historyTimeline`'s own doc explains a base prefix can change
+ * shape (e.g. a /24 later split into /25s), and treating that boundary
+ * change as a field-level diff would blend two genuinely different
+ * prefixes' facts together — the same blending `historyTimeline` itself was
+ * built to avoid.
+ */
+export async function changeEvents(ip: string): Promise<HistoryChangeEvent[]> {
+  const timeline = await historyTimeline(ip);
+  const events: HistoryChangeEvent[] = [];
+  for (let i = 1; i < timeline.length; i++) {
+    const prev = timeline[i - 1]!;
+    const curr = timeline[i]!;
+    if (prev.network !== curr.network) continue;
+    events.push(...diffHistoryRecords(curr.network, curr.validFrom, prev.record, curr.record));
+  }
+  return events;
 }
 
 export type CaptureTrigger = "auto" | "manual";

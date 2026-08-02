@@ -376,6 +376,34 @@ history
     }
   });
 
+history
+  .command("events <ip>")
+  .description(
+    "Typed change events (PrefixChanged/ASNChanged/GeoChanged/ThreatChanged) for the prefix " +
+      "covering <ip> — the same old/new pair `history timeline` shows, decomposed into which " +
+      "specific fact changed instead of two whole records to diff by hand.",
+  )
+  .option("--json", "Output as JSON")
+  .action(async (ip: string, opts: { json?: boolean }) => {
+    const { pool } = await import("@workspace/db");
+    dbPoolLoaded = pool;
+    const { changeEvents } = await import("@workspace/collector/history");
+    const events = await changeEvents(ip);
+    if (opts.json) {
+      console.log(JSON.stringify(events, null, 2));
+      return;
+    }
+    if (events.length === 0) {
+      console.log(`No typed change events for ${ip}.`);
+      return;
+    }
+    for (const e of events) {
+      console.log(`${e.occurredAt.toISOString()}  ${e.type.padEnd(13)} ${e.network}`);
+      console.log(`  from: ${JSON.stringify(e.from)}`);
+      console.log(`  to:   ${JSON.stringify(e.to)}`);
+    }
+  });
+
 program
   .command("hijack-scan")
   .description(
