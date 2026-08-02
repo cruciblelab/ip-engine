@@ -19,9 +19,31 @@
  * `geo_source`. If that distinction gets flattened by a consumer, the field
  * becomes misinformation — so it is deliberately shaped to make flattening
  * it awkward.
+ *
+ * `satellite` is the one exception to "pattern from text": it is matched by
+ * ASN number, not by name text. Starlink's holder name in the wild is
+ * inconsistent enough ("SPACEX-STARLINK", "STARLINK", plain "SpaceX") that a
+ * text pattern would either miss real rows or false-positive on an unrelated
+ * "SpaceX"-named network; the ASN is fixed and unambiguous. AS14593 is the
+ * only entry today — this is a short, named allowlist, not a general
+ * mechanism, because satellite ISPs with their own ASN are rare.
  */
 
-export type ConnectionType = "cellular" | "dsl" | "cable" | "fiber" | "corporate" | "hosting";
+export type ConnectionType =
+  | "cellular"
+  | "dsl"
+  | "cable"
+  | "fiber"
+  | "corporate"
+  | "hosting"
+  | "satellite";
+
+/** ASNs identified as satellite/LEO internet access operators. Checked
+ * before any text pattern — see the header comment for why this one type is
+ * matched by number instead of name. */
+const SATELLITE_ASNS = new Set<number>([
+  14593, // SpaceX Starlink
+]);
 
 export interface ConnectionTypeGuess {
   type: ConnectionType;
@@ -54,13 +76,17 @@ const PATTERNS: Array<{ type: ConnectionType; re: RegExp }> = [
 ];
 
 /**
- * Guess from the ASN name and/or reverse DNS. Returns null when nothing
- * matches — which is the common case and the correct answer.
+ * Guess from the ASN name/number and/or reverse DNS. Returns null when
+ * nothing matches — which is the common case and the correct answer.
  */
 export function guessConnectionType(
   asnName: string | null,
   reverseDns: string | null,
+  asnNumber?: number | null,
 ): ConnectionTypeGuess | null {
+  if (asnNumber != null && SATELLITE_ASNS.has(asnNumber)) {
+    return { type: "satellite", confidence: "heuristic", matched: `as${asnNumber}` };
+  }
   // rDNS first: it describes this specific address, while the ASN name
   // describes the whole network and is the coarser of the two.
   for (const candidate of [reverseDns, asnName]) {

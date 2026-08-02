@@ -1046,7 +1046,7 @@ components:
       properties:
         type:
           type: string
-          enum: [cellular, dsl, cable, fiber, corporate, hosting]
+          enum: [cellular, dsl, cable, fiber, corporate, hosting, satellite]
         confidence:
           type: string
           enum: [heuristic]

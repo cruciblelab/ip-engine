@@ -1209,7 +1209,7 @@ export async function lookupIp(rawIp: string): Promise<IpLookupResult> {
         })
       : null,
     connection_type: wantConnectionType
-      ? guessConnectionType(asnEntry?.asnName ?? null, reverseDns)
+      ? guessConnectionType(asnEntry?.asnName ?? null, reverseDns, asnEntry?.asnNumber ?? null)
       : null,
   };
 
