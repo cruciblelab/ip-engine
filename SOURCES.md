@@ -228,8 +228,10 @@ from this layer is not evidence of absence.
   | OAI-SearchBot | OpenAI | 35 |
   | Bingbot | Microsoft | 28 |
   | GPTBot | OpenAI | 21 |
+  | Anthropic (ClaudeBot / Claude-User / Claude-SearchBot, combined) | Anthropic | 20 |
   | Applebot | Apple | 12 |
   | PerplexityBot | Perplexity | 8 |
+  | CCBot | Common Crawl | 6 |
 
   Populates `verified_bot_ranges`, exposed as the `verified_bot` lookup
   feature and as `ip_intel.verified_bot` / `.verified_bot_operator`.
@@ -240,11 +242,28 @@ from this layer is not evidence of absence.
   Comparing the two is the caller's job and is the entire point: this
   supplies the half that can't be forged.
 
-  **Absence is not a verdict.** Checked and deliberately not added, because
-  no machine-readable list could be confirmed: **DuckDuckGo** (HTML page
-  only), **Anthropic/ClaudeBot** (CIDRs stated in prose documentation, no
-  feed), **Meta/Facebook** (documentation directs you to whois AS32934),
-  **Yandex** and **Baidu** (reverse-DNS verification only), **Common Crawl**,
+  **Anthropic and Common Crawl re-checked this session — the answer changed.**
+  An earlier pass of this project checked both and found nothing to ingest:
+  Anthropic's own documentation stated outright "we do not currently publish
+  IP ranges", and Common Crawl had no equivalent file either. Re-verified
+  directly against each operator's current site (not a third-party
+  aggregator — several of those returned plausible-looking but unconfirmed
+  numbers that didn't match the real files) before adding: Anthropic now
+  publishes `https://claude.com/crawling/bots.json` (one combined list for
+  all three of its crawlers — no per-crawler split, unlike Google), and
+  Common Crawl publishes `https://index.commoncrawl.org/ccbot.json`. Both use
+  the same JSON shape Google defined, so the existing parser covers them with
+  no new code. This is the concrete reason every source in this table is
+  re-checked at the primary source rather than assumed from what a prior pass
+  (or this document) already says — "no feed exists" is a fact with a
+  timestamp, not a permanent property of the operator.
+
+  **Absence is still not a verdict** for what's left. Checked and
+  deliberately not added, because no machine-readable list could be
+  confirmed: **DuckDuckGo** (HTML page only), **Meta/Facebook**
+  (documentation directs you to whois AS32934, re-checked this session — still
+  no first-party JSON/CSV file, only third-party mirrors of unconfirmed
+  provenance), **Yandex** and **Baidu** (reverse-DNS verification only),
   **Semrush**. A real crawler from any of these is simply missing here, so
   `verified_bot: null` means "unverifiable from published data", never
   "fake".
@@ -577,7 +596,7 @@ under that different use case.
 | ASN reach metrics | Derived locally from the RIS data above — no separate upstream license |
 | Azure Service Tags | Published by Microsoft for public consumption |
 | Tor exit list | Published by the Tor Project for exactly this purpose |
-| Verified-bot ranges (10 crawlers) | Published by each operator specifically so third parties can verify the crawler's identity |
+| Verified-bot ranges (12 crawlers) | Published by each operator specifically so third parties can verify the crawler's identity |
 | Mullvad relay list | Published by Mullvad through their public API |
 | Abuse contact / geofeed (live RDAP) | Per-query lookups against each RIR's standards-mandated RDAP service (RFC 7480–7484); not a bulk data product — see "RDAP-based live discovery" below |
 | Abuse contact (security.txt, RFC 9116) | Self-published by each organisation on its own domain; no RIR involved, no registry, no redistribution terms |
@@ -629,7 +648,7 @@ commercially:
 | IANA special-purpose registries | Yes | Public registry data |
 | Azure Service Tags | Yes | Published by Microsoft for public use |
 | Tor exit list | Yes | Published by the Tor Project |
-| Verified-bot ranges (Google ×3, OpenAI ×3, Bing, Apple, Perplexity, Ahrefs) | Yes | Each operator publishes these expressly so third parties can verify the crawler — consuming them is the documented purpose, not a tolerated side use. |
+| Verified-bot ranges (Google ×3, OpenAI ×3, Bing, Apple, Perplexity, Ahrefs, Anthropic, Common Crawl) | Yes | Each operator publishes these expressly so third parties can verify the crawler — consuming them is the documented purpose, not a tolerated side use. |
 | Mullvad relay list | Yes | Public API; check Mullvad's terms before high-volume polling |
 | Abuse contact / geofeed (live RDAP) | Yes, under the API-only assumption above | Per-query RDAP lookups, not a bulk redistribution product; discovered geofeed CSVs are third-party URLs — each publisher's own terms apply to their feed once fetched |
 | Abuse contact (security.txt, RFC 9116) | Yes | Bonus fallback only, tried after RDAP comes back empty; self-published on the organisation's own domain, so no RIR/registry terms apply at all. Coverage is low by nature: an arXiv-cited measurement (Feb 2025) found adoption under 1-2% of domains generally, and it needs a reverse-DNS hit first — a miss here is normal, never a wrong answer. |

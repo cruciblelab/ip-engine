@@ -74,6 +74,12 @@ const ENRICHMENT_MINIMUMS: Record<string, number> = {
   "civo-geofeed": 5,
   "schwarzit-geofeed": 5,
   "telia-geofeed": 20,
+  // Small, deliberately-scoped operator feeds (Anthropic's combined list was
+  // ~20 rows, Common Crawl's ~6, when checked this session) — the point is
+  // only catching "came back at 0", same as the other individually-run feeds
+  // above.
+  "anthropic-crawlers": 5,
+  "ccbot": 3,
   // Derived from bgp_origin_ranges, so this can only come back low if the
   // BGP sources themselves failed — a real run yields ~85K originating ASNs.
   "asn-reach": 30_000,

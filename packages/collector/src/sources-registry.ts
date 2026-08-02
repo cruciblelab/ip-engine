@@ -85,6 +85,12 @@ export const DEFAULT_SOURCES_REGISTRY: SourcesRegistry = {
     "chatgpt-user": "https://openai.com/chatgpt-user.json",
     "perplexitybot": "https://www.perplexity.ai/perplexitybot.json",
     "ahrefsbot": "https://api.ahrefs.com/v3/public/crawler-ip-ranges",
+    // Same Google-defined JSON shape as the feeds above. Re-verified this
+    // session — as of when SOURCES.md's "checked, not added" note was
+    // written, neither operator published one; both do now (see the
+    // "Verified bots" section of SOURCES.md for what changed and when).
+    "anthropic-crawlers": "https://claude.com/crawling/bots.json",
+    "ccbot": "https://index.commoncrawl.org/ccbot.json",
     // Microsoft dates the filename and changes it weekly, so this points at
     // the download *page*; the parser scrapes the current JSON URL out of it.
     "azure-ip-ranges": "https://www.microsoft.com/en-us/download/details.aspx?id=56519",

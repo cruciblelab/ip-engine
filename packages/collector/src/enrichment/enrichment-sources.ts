@@ -657,6 +657,50 @@ export const KNOWN_ENRICHMENT_SOURCES: EnrichmentSourceConfig[] = [
     },
   },
   {
+    // Anthropic publishes one combined list covering all three of its
+    // crawlers (ClaudeBot — autonomous training crawl, Claude-User —
+    // fetches triggered by a user's Claude request, Claude-SearchBot —
+    // search indexing) rather than Google's per-crawler split; there is no
+    // finer-grained feed to ingest. Re-checked this session: as of when
+    // SOURCES.md's "Absence is not a verdict" note was written, Anthropic
+    // stated it did not publish IP ranges at all — that changed since (see
+    // SOURCES.md's "Verified bots" section for the dated correction).
+    id: "anthropic-crawlers",
+    displayName: "Anthropic crawlers (ClaudeBot, Claude-User, Claude-SearchBot)",
+    description:
+      "Anthropic's combined published range for all three of its crawlers/fetchers.",
+    kind: "verified-bot",
+    url: registry.enrichment["anthropic-crawlers"]!,
+    parser: "bot-prefixes-json",
+    provider: "claude-crawlers",
+    source: "Anthropic",
+    license: {
+      name: "Published by the operator for bot verification",
+      attributionRequired: false,
+      note: "Published specifically so third parties can verify these crawlers' identity — consuming it is the documented purpose.",
+    },
+  },
+  {
+    // Re-checked this session, same as Anthropic above: Common Crawl did not
+    // publish a machine-readable list when SOURCES.md's prior note was
+    // written ("Absence is not a verdict" listed it alongside Meta/DuckDuckGo/
+    // Yandex/Baidu as unconfirmable). It does now, in the same JSON shape.
+    id: "ccbot",
+    displayName: "CCBot (Common Crawl)",
+    description:
+      "Common Crawl's web crawler, used to build the open crawl corpus many AI training pipelines draw from.",
+    kind: "verified-bot",
+    url: registry.enrichment["ccbot"]!,
+    parser: "bot-prefixes-json",
+    provider: "ccbot",
+    source: "Common Crawl",
+    license: {
+      name: "Published by the operator for bot verification",
+      attributionRequired: false,
+      note: "Published specifically so third parties can verify this crawler's identity — consuming it is the documented purpose.",
+    },
+  },
+  {
     id: "tor-exit-nodes",
     displayName: "Tor exit nodes",
     description:

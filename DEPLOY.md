@@ -333,6 +333,29 @@ silently.
   report every anycast address as "changed" — that's the bug being
   corrected showing up as a one-time false change, not a real network
   event; expected, not a sign of a new problem.
+- **"No feed exists for X" is a fact with a timestamp, not a permanent
+  property of the operator — re-check at the primary source before trusting
+  an earlier pass's negative finding.** SOURCES.md previously documented
+  Anthropic and Common Crawl as checked-and-rejected for verified-bot
+  ranges: Anthropic's own docs stated "we do not currently publish IP
+  ranges" and Common Crawl had no equivalent file. Both now do
+  (`claude.com/crawling/bots.json`, `index.commoncrawl.org/ccbot.json`,
+  added this session) — the operators changed their minds, the document
+  didn't get stale on purpose. Re-verified directly against each operator's
+  own domain rather than a third-party "AI crawler IP list" aggregator site:
+  several of those returned plausible, specific-looking CIDRs that didn't
+  match the real files when checked against the primary source, which is
+  its own trap — a confident-sounding secondary source is not verification.
+- **Node's built-in `fetch` does not read `HTTPS_PROXY`/`https_proxy` —
+  `curl` does, silently, which makes a "the feed doesn't work" impression
+  when it's actually only this process's networking.** Only surfaces in an
+  environment that requires an outbound proxy (a sandboxed dev container,
+  a locked-down corporate network); a normal server with direct internet
+  egress never hits this. If `enrich` reports a source failing with a
+  connect/reset error that an equivalent `curl` to the same URL doesn't
+  reproduce, suspect this before the upstream. Not worked around in product
+  code — it would be a needless dependency for every real deployment, which
+  runs with ordinary direct egress.
 
 ### Running on modest/mobile hardware (e.g. Android + Termux, as a trial)
 
@@ -470,12 +493,20 @@ before starting any of it, priorities may have shifted.
    already holds the old/new record pair; this is decomposing the existing
    whole-record diff into typed fields. Directly extends the history
    feature that's the whole point of turning `historyCaptureEnabled` on.
-2. **More verified-bot feeds** (Anthropic's own crawler, Meta's, Common
-   Crawl's CCBot) — same parser shape as the 10 bot feeds already wired
-   up; AI-crawler identification is high-relevance right now.
-3. **Starlink / satellite `connection_type`** — likely doesn't need a new
-   downloaded feed at all, just an ASN-name heuristic (AS14593) added to
-   the existing connection-type heuristic. Rare signal among competitors.
+2. **More verified-bot feeds — done.** Re-checked Anthropic, Meta, and
+   Common Crawl at their primary sources rather than trusting this list:
+   Anthropic (`claude.com/crawling/bots.json`, one combined feed for
+   ClaudeBot/Claude-User/Claude-SearchBot) and Common Crawl
+   (`index.commoncrawl.org/ccbot.json`) now publish machine-readable lists
+   in the same JSON shape the existing `bot-prefixes-json` parser already
+   handles — no new parser needed. Meta still doesn't (still only
+   whois/AS32934); left out, same as before. See the "Verified bots
+   re-checked" entry below and SOURCES.md's "Verified bots" section for the
+   full reasoning and real ingested counts.
+3. **Starlink / satellite `connection_type` — done.** Added `satellite` to
+   `ConnectionType` and a fixed AS14593 allowlist checked by ASN number
+   (not name text — Starlink's holder name varies across whois data, the
+   ASN doesn't) in `connection-type.ts`, ahead of the text-pattern loop.
 4. **FireHOL IP Lists** (github.com/firehol/blocklist-ipsets) — the actual
    fix for `threat_flagged` reading 0; per-list licences stated explicitly,
    mostly open. Real effort (new parser), real payoff (closes an expected-
