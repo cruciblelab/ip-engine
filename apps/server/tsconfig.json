@@ -1,0 +1,28 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "incremental": true,
+    "tsBuildInfoFile": ".tsbuildinfo",
+    "outDir": "dist",
+    "rootDir": "src",
+    "types": ["node"]
+  },
+  "include": ["src"],
+  "references": [
+    {
+      "path": "../../packages/db"
+    },
+    {
+      "path": "../../packages/api-schema"
+    },
+    {
+      "path": "../../packages/shared"
+    },
+    {
+      "path": "../../packages/collector"
+    },
+    {
+      "path": "../../packages/lookup"
+    }
+  ]
+}

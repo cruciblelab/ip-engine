@@ -1,0 +1,57 @@
+# See https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files for more about ignoring files.
+
+# compiled output
+dist
+tmp
+out-tsc
+*.tsbuildinfo
+
+# dependencies
+node_modules
+
+# IDEs and editors
+/.idea
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+
+# IDE - VSCode
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# misc
+/.sass-cache
+/connect.lock
+/coverage
+/libpeerconnection.log
+npm-debug.log
+yarn-error.log
+testem.log
+/typings
+
+# System Files
+.DS_Store
+Thumbs.db
+
+.cache/
+.local/
+
+# Persistent NDJSON logs (packages/core/src/shared/logger.ts) — can grow
+# large, export via GET /api/logs/export or `ip-insight status` instead of
+# committing them.
+logs/
+
+# Local environment — holds DATABASE_URL, which carries the database
+# password. Harmless while that's a localhost dev credential; the moment
+# this project runs anywhere real it is a secret, and the time to stop
+# tracking it is before that, not after it has been committed once.
+# `.env.example` is deliberately still tracked, as the documented shape.
+.env
+.env.*
+!.env.example
