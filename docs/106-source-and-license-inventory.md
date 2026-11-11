@@ -42,7 +42,7 @@ software dependencies (`pnpm licenses list --prod`: 117 packages).
 |---|---|---|---|---|---|---|---|
 | A | RIR & IANA registry data | 7 | – | 1 | 5 | 1 | – |
 | B | BGP, ASN, routing | 6 (B1, B2, B4 ⏸ since Phase 1) | – | – | 3 | – | – |
-| C | Geolocation | 20 items = 197 sources | – | 3 | 13 | 4 | – |
+| C | Geolocation | 20 items = 197 sources | – | 2 | 13 | 5 | – |
 | D | Cloud / CDN ranges | 9 | – | – | 9 | – | – |
 | E | Verified bots | 12 | – | – | – | 12 | – |
 | F | Anonymity & threat | 3 | – | – | 1 | 2 | – |
@@ -88,7 +88,9 @@ for its phase, not a conclusion.
 5. **C2 DB-IP Lite: where must attribution appear?** DB-IP asks for
    attribution and a link "wherever results are shown". A web page is
    clear; an API response read by a customer's code, shown to *their*
-   users, is not. Needs a deliberate answer.
+   users, is not. Needs a deliberate answer. *License re-verified
+   2026-11-11 (C2 verification record): commercial use confirmed in DB-IP's
+   own words; what remains is implementing the attribution.*
 6. **C6 Netflix: is its data only used for geolocation?** The grant is
    "only for improving the accuracy of Geo:IP lookups". Geofeed rows may
    feed signals beyond geo (e.g. a `country-conflict` flag). Needs a
@@ -156,7 +158,7 @@ B6 reads RouteViews' raw files instead.
 | ID | Source (registry id) | Recorded license | Evidence | Risk |
 |---|---|---|---|---|
 | C1 | GeoNames (`geonames-cities`) | CC BY 4.0 | geonames.org | 🟢 attribution shown on Sources page |
-| C2 | DB-IP Lite (`dbip-lite`) | CC BY 4.0 + link back | db-ip.com ToS + license pages, 2026-08-21 | 🟠 API attribution question |
+| C2 | DB-IP Lite (`dbip-lite`) | CC BY 4.0 + link back | **Re-verified 2026-11-11 with verbatim quotes and evidence** (see "C2 verification record") | 🟢 license; attribution still to be implemented in `ipreadout-service` |
 | C3 | LACNIC bulk whois city (`lacnic-whois-city`) | LAC-2018-3 policy publication | Policy text, 2026-08-19 — "free to download", no explicit commercial grant | 🟠 |
 | C4 | Verizon (`verizon-geofeed`) | CDLA-Permissive-2.0 | License file | 🟢 |
 | C5 | T-Mobile US (`tmobile-geofeed`) | Apache-2.0 | License file | 🟢 |
@@ -353,6 +355,151 @@ commercial terms require, and (b) whether the license is CC BY or CC BY-SA.
 
 - **G4 — RIS Live**, missed in Phase 0. Internal only; rated 🟡.
 - **B3 downgraded** to 🟡 after reading CAIDA's AUA wording first-hand.
+
+## C2 verification record — DB-IP Lite (2026-11-11)
+
+**Why this was re-checked.** A free "Lite" edition of a paid product that
+allows commercial use — including building a competing IP-geolocation
+service — sounded too good to be true. The 2026-08-21 check (`SOURCES.md`)
+had reached the same conclusion, but recorded no verbatim text and kept no
+copies. This record fixes that.
+
+**Method.** The pages were downloaded directly from db-ip.com on
+2026-11-11 around 19:29 UTC and read in full, not summarised. Quotes below
+are copied exactly. Independent third-party copies exist on the Internet
+Archive (links at the end).
+
+### 1. The suspicious-looking clause exists, and applies to the paid product only
+
+`db-ip.com/tos.php`, section "Licensing terms" — for the **paid** license:
+
+> "This license explicitly prohibits usage of the database to offer free or
+> commercial IP geolocation API services or any other related service that
+> would duplicate or compete with the services offered by DB-IP."
+
+The very next sentence:
+
+> "The terms above do not apply to the free database downloads which are
+> licensed under the terms of the Creative Commons Attribution 4.0
+> International License, and to the provided open source code which is
+> licensed under the terms of the GNU Lesser General Public License."
+
+So the non-compete is real, and it is the *paid* customers who are bound by
+it. The free download is explicitly outside it.
+
+### 2. DB-IP says commercial use of the free download is allowed, in its own words
+
+`db-ip.com/faq.php`, question "Can I use the DB-IP database or API in a
+commercial product ?":
+
+> "Our free database downloads are licensed under a Creative Commons
+> license, you are allowed to use the database in a commercial product and
+> redistribute it as long as you comply with the rest of the licensing
+> terms."
+
+### 3. The license and the attribution requirement
+
+`db-ip.com/db/download/ip-to-city-lite` and `db-ip.com/db/lite.php`, both
+with the same wording:
+
+> "IP to City Lite database by DB-IP is licensed under a Creative Commons
+> Attribution 4.0 International License."
+>
+> "You are free to use this IP to City Lite database in your application,
+> provided you give attribution to DB-IP.com for the data."
+>
+> "In the case of a web application, you must include a link back to
+> DB-IP.com on pages that display or use results from the database."
+
+The snippet they offer: `<a href='https://db-ip.com'>IP Geolocation by DB-IP</a>`.
+The link points to `creativecommons.org/licenses/by/4.0/` — plain BY, not
+ShareAlike, on every page checked.
+
+### 4. Why the free edition exists — and why it isn't suspicious after all
+
+The same pages say what the Lite edition gives up. The download page:
+"a subset of the IP to Location commercial database with reduced accuracy
+and number of records". The FAQ: the Lite databases "have reduced accuracy
+and do not undergo the same QA process". Upgrading is advertised with
+"No attribution required", "Better accuracy", "More records", "Daily
+releases", "Technical support". The free edition is DB-IP's advertising:
+every user has to show "IP Geolocation by DB-IP" with a link. That is the
+price, and it is why commercial use is allowed.
+
+### 5. What if DB-IP changes its terms later
+
+The Creative Commons legal code itself (`creativecommons.org/licenses/by/4.0/legalcode.en`):
+
+> "the Licensor hereby grants You a worldwide, royalty-free,
+> non-sublicensable, non-exclusive, irrevocable license"
+>
+> "the Licensor may also offer the Licensed Material under separate terms or
+> conditions or stop distributing the Licensed Material at any time;
+> however, doing so will not terminate this Public License."
+
+So a file downloaded under CC BY 4.0 stays licensed under CC BY 4.0 even if
+DB-IP changes terms later; new terms could only apply to *later* files. The
+one way to lose the license is our own non-compliance (Section 6):
+
+> "if You fail to comply with this Public License, then Your rights under
+> this Public License terminate automatically."
+
+— reinstated automatically if the violation is cured within 30 days of
+discovering it. **In practice: attribution is the whole obligation, and
+missing it is the only real risk.**
+
+### 6. Things that come with it
+
+- **GeoNames.** DB-IP's ToS, "Acknowledgement": "Part of the data provided
+  in the DB-IP products and services is sourced from the GeoNames database
+  which is distributed under the Creative Commons Attribution license."
+  GeoNames is already credited by us (C1), so this adds nothing new — but
+  the GeoNames credit must stay on any page that carries DB-IP data.
+- **No license text inside the file.** The downloaded CSV is bare data
+  (first line `0.0.0.0,0.255.255.255,ZZ,ZZ,,,0,0`); the terms live only on
+  the website, which is why keeping dated copies matters.
+- **The November 2026 release**, as published on the download page:
+  7,777,816 records; CSV SHA1 `254ef60b261cb4fb613362058b388a480d2a6b92`.
+
+### 7. Evidence kept
+
+Copies of the six pages as downloaded, with SHA-256 fingerprints. Kept
+**outside this repository** on purpose: they are DB-IP's and Creative
+Commons' copyrighted pages, and this repository is public.
+
+| Page | SHA-256 of the downloaded copy |
+|---|---|
+| `db-ip.com/tos.php` | `658bac4a705f55c639be4f1ece3c24a1bee2f23ba054bdd52a5e03d253302401` |
+| `db-ip.com/faq.php` | `e7000d54fd3cecaa29f861f789ed7fb6dcb0e41f98dd48c204d8ef76409bc0ff` |
+| `db-ip.com/db/download/ip-to-city-lite` | `af2415b434d5567245ad1c9448b27dedf058bace29bddda1adc44066c4510038` |
+| `db-ip.com/db/lite.php` | `f137b0b9693e1f5c3f5dd119451a16549e5c4c6beca77c4e1a8ea0f53865bd66` |
+| `db-ip.com/db/ip-to-city-lite` | `e309a81fd79ca366639597ac02f1147e4596e5d94a995421f08bcafa1d854894` |
+| `creativecommons.org/licenses/by/4.0/legalcode.en` | `58230517b7895aa219ff46a6ed63e67057a1582fb9ea054b16728a8c13525650` |
+
+A fingerprint only proves a copy hasn't changed since we made it, not what
+the site said. The independent proof is the Internet Archive, which holds
+its own copies (existence and dates confirmed via its availability API on
+2026-11-11; the archive refuses connections from this build environment, so
+their *contents* were not read here — open them in a browser):
+
+- ToS: <https://web.archive.org/web/20261103001311/https://db-ip.com/tos.php>
+- ToS, older: <https://web.archive.org/web/20241218114935/https://db-ip.com/tos.php>, <https://web.archive.org/web/20210117070408/https://db-ip.com/tos.php>
+- Download page: <https://web.archive.org/web/20261103064713/https://db-ip.com/db/download/ip-to-city-lite>
+- Lite page: <https://web.archive.org/web/20261103001310/https://db-ip.com/db/lite.php>
+- FAQ: <https://web.archive.org/web/20261027143451/https://db-ip.com/faq.php>
+
+### 8. What is left for C2
+
+Only the attribution itself, in `ipreadout-service`:
+- Every web page that shows a result (demo/lookup page, Sources page):
+  "IP Geolocation by DB-IP" linking to `https://db-ip.com`, plus the
+  GeoNames credit.
+- The API: DB-IP's terms name web pages explicitly and ask for
+  "attribution to DB-IP.com for the data" otherwise. The safe reading:
+  credit in the API documentation and on the Sources page, and an
+  attribution field in API responses whose geolocation came from DB-IP.
+  Over-attributing costs nothing; under-attributing is the one thing that
+  ends the license.
 
 ## Appendix — C20: the 178 RIPE-scan geofeeds, individually
 

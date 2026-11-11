@@ -250,6 +250,12 @@ free/Lite downloads from its paid-product restrictions):
   redistribution/resale prohibition, unlike IP2Location LITE's custom
   license, checked the same day and rejected for exactly that "not
   permitted to redistribute or resell this product" clause).
+- **Re-verified 2026-11-11 with verbatim quotes and kept copies** —
+  `docs/106`, "C2 verification record". The ToS's non-compete ("explicitly
+  prohibits usage of the database to offer free or commercial IP
+  geolocation API services") binds *paid* customers only; the next sentence
+  exempts the free downloads, and DB-IP's FAQ says outright that the free
+  database may be used "in a commercial product".
 - **Requirement**: attribution + link back to db-ip.com wherever results
   from the database are shown — an ongoing product obligation to track
   alongside the RIPE RIS attribution requirement already tracked in

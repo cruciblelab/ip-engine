@@ -412,7 +412,7 @@ export const KNOWN_ENRICHMENT_SOURCES: EnrichmentSourceConfig[] = [
       name: "CC BY 4.0",
       attributionRequired: true,
       attributionText: "IP geolocation data by DB-IP (https://db-ip.com)",
-      note: "Free/Lite downloads are explicitly carved out of DB-IP's paid-product Terms of Service and governed by CC BY 4.0 alone (no ShareAlike, no redistribution/resale prohibition) — checked against db-ip.com/tos.php directly, not just the product page. Contrast with IP2Location LITE, checked the same day and rejected for an explicit \"not permitted to redistribute or resell this product\" clause.",
+      note: "Free/Lite downloads are explicitly carved out of DB-IP's paid-product Terms of Service and governed by CC BY 4.0 alone (no ShareAlike, no redistribution/resale prohibition) — checked against db-ip.com/tos.php directly, not just the product page. Contrast with IP2Location LITE, checked the same day and rejected for an explicit \"not permitted to redistribute or resell this product\" clause. Re-verified 2026-11-11 with verbatim quotes and dated copies: docs/106, \"C2 verification record\".",
     },
   },
   {
