@@ -89,6 +89,15 @@ interface SourceRuntime {
     | "skipped";
   recordsIngested: number;
   recordsSkipped: number;
+  /**
+   * BGP-origin sources only: rows Postgres refused with ON CONFLICT DO
+   * NOTHING. Also counted in `recordsSkipped`, but kept apart because the
+   * purge of a deselected BGP project must know it specifically: a large
+   * value means the new project's rows collided with the old project's
+   * instead of being written, and deleting the old rows then empties the
+   * table. In memory only — the purge runs in the same job.
+   */
+  conflictDropped: number;
   bytesDownloaded: number;
   /** Fed every downloaded chunk (see the three read paths below) and
    * digested once the body is consumed. Null for sources that download
@@ -215,6 +224,7 @@ export async function startEnrichment(
         status: "pending" as const,
         recordsIngested: 0,
         recordsSkipped: 0,
+        conflictDropped: 0,
         bytesDownloaded: 0,
         hasher: null,
         contentHash: null,
@@ -405,6 +415,7 @@ async function resumeEnrichment(
         status: "pending" as const,
         recordsIngested: 0,
         recordsSkipped: 0,
+        conflictDropped: 0,
         bytesDownloaded: 0,
         hasher: null,
         contentHash: null,
@@ -642,6 +653,9 @@ async function runSourceWithRetry(job: ActiveJob, source: SourceRuntime): Promis
   for (let attempt = 1; attempt <= SOURCE_RETRY_ATTEMPTS; attempt++) {
     await runSource(job, source);
     if (source.status !== "failed") return; // succeeded, or user-requested stop
+    // Retrying cannot fix an old schema; it only made the operator wait
+    // through the backoff before seeing the message.
+    if (source.errorMessage === BGP_SCHEMA_OUT_OF_DATE) return;
     if (attempt === SOURCE_RETRY_ATTEMPTS) break;
 
     const delay = FETCH_RETRY.baseDelayMs * 2 ** attempt;
@@ -652,6 +666,7 @@ async function runSourceWithRetry(job: ActiveJob, source: SourceRuntime): Promis
     source.status = "pending";
     source.recordsIngested = 0;
     source.recordsSkipped = 0;
+    source.conflictDropped = 0;
     source.bytesDownloaded = 0;
     source.errorMessage = null;
     await persistSource(source);
@@ -705,6 +720,24 @@ async function runSource(
       source.endedAt = new Date();
       await persistSource(source);
       return;
+    }
+
+    // Refuse to ingest BGP data into a table whose unique index is still the
+    // pre-2026-11-08 (network, asn) one. On that index a newly selected
+    // project's rows collide with the old project's and are dropped, and the
+    // purge then deletes the old rows — measured on a real phone database
+    // after a `push` that silently didn't run: 26,725 of 1,443,232 rows
+    // left, ASN empty for nearly every address. Failing here, before any
+    // delete, leaves the current data serving.
+    if (source.config.kind === "bgp-origin") {
+      const problem = await bgpOriginSchemaProblem();
+      if (problem) {
+        source.status = "failed";
+        source.errorMessage = problem;
+        source.endedAt = new Date();
+        await persistSource(source);
+        return;
+      }
     }
 
     if (!source.config.url) {
@@ -1152,6 +1185,31 @@ async function flushAsnNames(
   await persistSource(source);
 }
 
+/**
+ * Null when `bgp_origin_ranges` has the unique index this code needs,
+ * otherwise an operator-facing explanation. Checks the index *definition*
+ * rather than its name, and fails on the old (network, asn) index even if
+ * the new one exists beside it, since either way the old one still drops
+ * colliding rows.
+ */
+const BGP_SCHEMA_OUT_OF_DATE =
+  "Database schema is out of date: bgp_origin_ranges still has the old (network, asn) unique index. " +
+  "Run `pnpm --filter @workspace/db run push` first (it needs DATABASE_URL, from the shell or the repo-root .env). " +
+  "Nothing was changed — the current BGP data is still in place.";
+
+async function bgpOriginSchemaProblem(): Promise<string | null> {
+  const { rows } = await db.execute<{ has_new: boolean | null; has_old: boolean | null }>(sql`
+    SELECT bool_or(indexdef LIKE '%(network, asn, source)') AS has_new,
+           bool_or(indexdef LIKE '%(network, asn)')         AS has_old
+    FROM pg_indexes
+    WHERE schemaname = 'public' AND tablename = 'bgp_origin_ranges'
+      AND indexdef LIKE 'CREATE UNIQUE INDEX%'
+  `);
+  const r = rows[0];
+  if (r?.has_new && !r?.has_old) return null;
+  return BGP_SCHEMA_OUT_OF_DATE;
+}
+
 /** Whether `bgpOriginSource` currently selects the project this source id belongs to. */
 function isSelectedBgpOriginSource(sourceId: string): boolean {
   return BGP_ORIGIN_SOURCE_IDS[loadCollectorConfig().bgpOriginSource].includes(sourceId);
@@ -1216,6 +1274,34 @@ async function purgeDeselectedBgpOriginSource(job: ActiveJob): Promise<void> {
     logger.debug(
       { active, activeIds, missing },
       "Skipping deselected-BGP-origin-source purge: not every source of the selected project completed in this job",
+    );
+    return;
+  }
+
+  // The same schema check runSource does, repeated here because this is the
+  // step that actually deletes: on the old index, "the selected project
+  // completed" can be true with almost none of its rows written.
+  const schemaProblem = await bgpOriginSchemaProblem();
+  if (schemaProblem) {
+    logger.warn({ active }, `Skipping deselected-BGP-origin-source purge: ${schemaProblem}`);
+    return;
+  }
+  // Independent of the index: if a selected source had a meaningful share of
+  // its rows refused as conflicts, its data did not land, whatever the row
+  // count says. RIS's own MOAS duplicates are ~150 in 1.27M; RouteViews
+  // produces none. 1% leaves wide room for both.
+  const collided = job.sources.filter(
+    (s) =>
+      activeIds.includes(s.config.id) &&
+      s.conflictDropped > 0.01 * (s.recordsIngested + s.conflictDropped),
+  );
+  if (collided.length > 0) {
+    logger.warn(
+      {
+        active,
+        collided: collided.map((s) => ({ id: s.config.id, written: s.recordsIngested, refused: s.conflictDropped })),
+      },
+      "Skipping deselected-BGP-origin-source purge: the selected project's rows were largely refused as conflicts, so deleting the other project's rows would empty the table",
     );
     return;
   }
@@ -1699,6 +1785,7 @@ async function flushBgpOriginBatch(
       source.recordsIngested += inserted;
       job.totalIngested += inserted;
       source.recordsSkipped += slice.length - inserted;
+      source.conflictDropped += slice.length - inserted;
       job.totalSkipped += slice.length - inserted;
     } catch (err) {
       logger.warn({ err }, "bgp-origin batch insert failed");

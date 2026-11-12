@@ -485,3 +485,57 @@ canonical text form. `pnpm test`: 171/171 (156 before + 15 MRT tests).
 - **`bgp-live` (RIS Live) is still RIPE RIS.** It is not customer-facing —
   `lookup` and the `.mmdb` never read its tables — so it was left alone.
   `docs/106` G4.
+
+---
+
+# Step 3 addendum (2026-11-12): the switch on a real phone database
+
+The four fixes above held in the sandbox, where the schema push ran. On
+the operator's phone it didn't, and the switch emptied the table anyway.
+
+**What happened.** `pnpm --filter @workspace/db run push` reads
+`DATABASE_URL` from the shell only; the CLI reads it from the repo-root
+`.env`. With the address only in `.env`, push stopped with "DATABASE_URL,
+ensure the database is provisioned" — one line in a long setup, easy to
+miss — and the old `(network, asn)` unique index stayed. The RouteViews
+run then hit the original collision: 1.42M rows refused, ~27k written.
+Fix 3 above ("the table must hold at least what the sources reported")
+**did not catch it**, because fix 2 had made "reported" honest: 27k
+reported, 27k present, so the purge deleted all 1.59M RIS rows. Result:
+`ASN: -` for nearly every address, and the operator's `enrich` total of
+"skipped: 5,547,034" (≈1.42M refused + DB-IP's ~4.13M skipped IPv6 rows).
+
+Reproduced exactly in the sandbox by restoring the old index before
+switching: 1,418,983 refused, 26,725 rows left, RIS purged.
+
+**The guard was checking the wrong thing.** Fix 3 protects against rows
+vanishing *after* they were written. This was rows never written. Both
+need guarding, and the root cause — an old schema — needs a check of its
+own rather than inference from row counts.
+
+**Fixed (2026-11-12):**
+
+1. **Schema check before any BGP ingest** (`bgpOriginSchemaProblem` in
+   `enrichment.ts`): if `bgp_origin_ranges` lacks the
+   `(network, asn, source)` unique index, or still has the old
+   `(network, asn)` one, every BGP source fails at once with an
+   explanation naming the push command — before deleting anything. Not
+   retried (retrying cannot fix a schema; it only delayed the message by
+   two minutes of backoff). Verified on the reproduced broken database:
+   both RouteViews sources refused in 3 s, table untouched.
+2. **The purge checks the schema too**, and separately refuses if any
+   selected source had more than 1% of its rows refused as conflicts
+   (new `conflictDropped` counter; RIS's own duplicates are ~150 in 1.27M,
+   RouteViews has none). This second check was not separately exercised —
+   with check 1 in place the situation can't arise in a test without
+   bypassing it — so it is defence in depth, not a verified path.
+3. **`push` now reads the repo-root `.env`** when `DATABASE_URL` isn't set
+   in the shell (`drizzle.config.ts`), same precedence as the CLI.
+   Verified with the variable unset and the address only in `.env`: push
+   ran without prompts and replaced the index; the existing rows survived.
+
+**Recovering a database in this state:** `push` (now works with `.env`),
+then `ip-insight enrich --sources routeviews-rib-ipv4,routeviews-rib-ipv6`.
+In the sandbox this restored 1,172,030 + 273,638 rows; `46.104.60.90`
+went from `ASN: -` to `AS20978` (TT Mobil, matching ipinfo.io).
+`pnpm test`: 174/174.

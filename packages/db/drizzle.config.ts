@@ -1,5 +1,20 @@
 import { defineConfig } from "drizzle-kit";
+import fs from "fs";
 import path from "path";
+
+// The CLI reads DATABASE_URL from the repo-root .env (apps/cli/src/index.ts);
+// `push` used to read it only from the shell. With the address only in .env,
+// push failed with the error below — easy to miss in a long setup — and
+// the schema stayed old. That is how a phone database kept the pre-2026-11-08
+// (network, asn) unique index and lost its BGP data on the RouteViews switch.
+// A shell-exported value still wins, same precedence as the CLI.
+if (!process.env.DATABASE_URL) {
+  const envFile = path.join(__dirname, "../../.env");
+  if (fs.existsSync(envFile)) {
+    const m = fs.readFileSync(envFile, "utf8").match(/^\s*DATABASE_URL\s*=\s*(.*?)\s*$/m);
+    if (m?.[1]) process.env.DATABASE_URL = m[1].replace(/^(['"])(.*)\1$/, "$2");
+  }
+}
 
 if (!process.env.DATABASE_URL) {
   throw new Error("DATABASE_URL, ensure the database is provisioned");
