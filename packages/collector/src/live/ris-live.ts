@@ -48,6 +48,7 @@
  * are collapsed into one row whose `peer_count` grows — which turns the
  * duplication into the most useful column in the table rather than noise.
  */
+import { loadCollectorConfig } from "../config";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import {
   db,
@@ -176,6 +177,14 @@ export function originFromPath(path: unknown): number | null {
 }
 
 export async function runRisLive(opts: RisLiveOptions = {}): Promise<RisLiveStats> {
+  // Off unless the config says otherwise (docs/106 G4): RIPE RIS data, and a
+  // live collection, both kept out of the commercial product.
+  if (!loadCollectorConfig().bgpLiveEnabled) {
+    throw new Error(
+      "bgp-live is disabled (bgpLiveEnabled: false in ip-insight.config.json). " +
+        "It reads RIPE RIS Live, which is kept off pending RIS's licensing conditions — see docs/106 G4.",
+    );
+  }
   const flushMs = (opts.flushSeconds ?? 15) * 1000;
 
   logger.info("ris-live: seeding known origins from bgp_origin_ranges...");

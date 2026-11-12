@@ -42,11 +42,11 @@ software dependencies (`pnpm licenses list --prod`: 117 packages).
 |---|---|---|---|---|---|---|---|
 | A | RIR & IANA registry data | 7 | – | 1 | 5 | 1 | – |
 | B | BGP, ASN, routing | 6 (B1, B2, B4 ⏸ since Phase 1) | – | – | 3 | – | – |
-| C | Geolocation | 20 items = 197 sources | – | 2 | 13 | 5 | – |
+| C | Geolocation | 20 items = 197 sources (C3 ⏸ since 2026-11-12) | – | – | 13 | 6 | – |
 | D | Cloud / CDN ranges | 9 | – | – | 9 | – | – |
 | E | Verified bots | 12 | – | – | – | 12 | – |
 | F | Anonymity & threat | 3 | – | – | 1 | 2 | – |
-| G | Live, query-time & internal tools | 4 | – | 1 | 1 | 2 | – |
+| G | Live, query-time & internal tools | 4 (G1, G4 ⏸ since 2026-11-12) | – | – | – | 2 | – |
 | H | Computed by us | 3 (+ lookup-time fields) | – | – | – | – | 3 |
 | I | Software & our own license | 3 | – | 1 | – | 2 | – |
 | J | Data protection (KVKK / GDPR) | 2 | – | 2 | – | – | – |
@@ -159,10 +159,10 @@ B6 reads RouteViews' raw files instead.
 |---|---|---|---|---|
 | C1 | GeoNames (`geonames-cities`) | CC BY 4.0 | geonames.org | 🟢 attribution shown on Sources page |
 | C2 | DB-IP Lite (`dbip-lite`) | CC BY 4.0 + link back | **Re-verified 2026-11-11 with verbatim quotes and evidence** (see "C2 verification record") | 🟢 license; attribution still to be implemented in `ipreadout-service` |
-| C3 | LACNIC bulk whois city (`lacnic-whois-city`) | LAC-2018-3 policy publication | Policy text, 2026-08-19 — "free to download", no explicit commercial grant | 🟠 |
+| C3 | LACNIC bulk whois city (`lacnic-whois-city`) | LAC-2018-3 policy publication | Policy text, 2026-08-19 — "free to download", no explicit commercial grant | ⏸ disabled 2026-11-12 (`disabledEnrichmentSources`) [🟠] |
 | C4 | Verizon (`verizon-geofeed`) | CDLA-Permissive-2.0 | License file | 🟢 |
 | C5 | T-Mobile US (`tmobile-geofeed`) | Apache-2.0 | License file | 🟢 |
-| C6 | Netflix (`netflix-geofeed`) | Restricted: geo accuracy only | Feed's own statement | 🟠 usage trace needed |
+| C6 | Netflix (`netflix-geofeed`) | Restricted: geo accuracy only | Feed's own statement; usage traced in code 2026-11-11 | 🟢 used for geolocation only — `country-conflict` comes from block/ASN countries, not geofeeds |
 | C7 | Schwarz IT (`schwarzit-geofeed`) | DL-DE→Zero-2.0 | License text | 🟢 |
 | C8 | Civo (`civo-geofeed`) | No licence file | Repo states purpose | 🟡 |
 | C9 | DigitalOcean (`digitalocean-geofeed`) | Published for public consumption | Operator page | 🟡 |
@@ -230,10 +230,10 @@ third-party consumption is the stated purpose.
 
 | ID | Source | Notes | Risk |
 |---|---|---|---|
-| G1 | RDAP at all five RIRs — abuse contacts, geofeed discovery, network names | Same RIPE Database T&C as bulk whois (Art. 4.5); per-query + cache is "defensible, not airtight" (`SOURCES.md`). Abuse contacts may be personal data. Out of scope for the `ipreadout-service` launch. | 🟠 |
+| G1 | RDAP at all five RIRs — abuse contacts, geofeed discovery, network names | Same RIPE Database T&C as bulk whois (Art. 4.5); per-query + cache is "defensible, not airtight" (`SOURCES.md`). Abuse contacts may be personal data. Out of scope for the `ipreadout-service` launch. | ⏸ `rdapEnabled: false` since 2026-11-12 [🟠] |
 | G2 | Reverse DNS (PTR) | Public DNS | 🟢 |
 | G3 | `security.txt` (RFC 9116) | Self-published for exactly this purpose | 🟢 |
-| G4 | RIPE RIS Live WebSocket (`bgp-live run`, `docs/97`) — **added in Phase 1, missed in Phase 0** | RIPE RIS data, same terms as B1/B2. Internal monitoring only: `lookup` and the `.mmdb` never read `bgp_live_events`. Seeds from `bgp_origin_ranges`, so it now compares RIS Live against a RouteViews baseline — works, but `peer_count` scales differ. If it ever feeds anything customers see, B1's logo condition comes with it. | 🟡 |
+| G4 | RIPE RIS Live WebSocket (`bgp-live run`, `docs/97`) — **added in Phase 1, missed in Phase 0** | RIPE RIS data, same terms as B1/B2. Internal monitoring only: `lookup` and the `.mmdb` never read `bgp_live_events`. Seeds from `bgp_origin_ranges`, so it now compares RIS Live against a RouteViews baseline — works, but `peer_count` scales differ. If it ever feeds anything customers see, B1's logo condition comes with it. | ⏸ `bgpLiveEnabled: false` since 2026-11-12 [🟡] |
 
 **Live and long-running collection stays out of the customer product
 (operator decision, 2026-11-12).** The customer gets the `.mmdb`, built
@@ -525,6 +525,48 @@ Only the attribution itself, in `ipreadout-service`:
   attribution field in API responses whose geolocation came from DB-IP.
   Over-attributing costs nothing; under-attributing is the one thing that
   ends the license.
+
+## Product configuration — what is off, and how to turn it back on (2026-11-12)
+
+Operator decision: anything with unclear terms is **disabled, not
+deleted**, and live or long-running collection stays out of the
+commercial product. Every switch is in `ip-insight.config.json`; none
+needs a code change to reverse.
+
+| Setting | Value | Turns off | Why |
+|---|---|---|---|
+| `bgpOriginSource` | `"routeviews"` | B1/B2 RIPE RIS | RIPE logo permission never granted |
+| `asnNameFallbackEnabled` | `false` | B4 RIPE `asn.txt` | Commercial terms unresolved |
+| `disabledEnrichmentSources` | `"lacnic-whois-city"` | C3 LACNIC city | No explicit commercial grant |
+| `rdapEnabled` | `false` | G1 live RDAP (abuse contacts, network names, geofeed discovery) | RIPE DB terms "defensible, not airtight"; abuse contacts can be personal data; live collection |
+| `bgpLiveEnabled` | `false` | G4 RIS Live (`bgp-live run`) | RIPE RIS data; live collection |
+| `historyCaptureEnabled` | `false` | History captures after each `enrich` | Long-running collection; never in the `.mmdb` (`mmdbHistoryFields` stays `false`) |
+
+**`disabledEnrichmentSources`** (new): comma-separated registry ids. A
+listed source is skipped without downloading — even when named in
+`--sources` — and at the start of each `enrich` its rows are removed from
+`geofeed_ranges`, so it also leaves `ip_intel` and the `.mmdb`. Removal is
+complete only for geofeed sources that write nowhere else
+(`disabled-sources.ts`); for any other kind the run warns that earlier
+rows may remain. If geofeed rows were removed and DB-IP isn't in the same
+run, it warns too: DB-IP's rows under them were pruned earlier and come
+back only with `enrich --sources dbip-lite`.
+
+Verified on real data (sandbox, 2026-11-12): with LACNIC disabled, an
+`enrich` skipped it, removed its 521,779 rows and printed the DB-IP
+warning; `2.152.8.5` went from "Bogotá D.C, CO [geofeed]" to no location,
+then — after `enrich --sources dbip-lite` — to "Bogotá, Bogota D.C., CO
+(4.71099, -74.0721) [dbip-lite]". `bgp-live run` refuses with the reason.
+`rdapEnabled: false` is pinned by a test asserting no network request is
+made and no budget spent. `pnpm test`: 175/175.
+
+**Still on, deliberately:** B6 RouteViews and B3 CAIDA (turning them off
+removes ASN, ASN names, size rank and RPKI status from the product — terms
+read as permitting our use, see their rows), A1–A7 RIR/IANA files (the
+product's base; their individual verification is Phase 2), and every 🟡
+"published for this purpose" source. Cached abuse contacts from earlier
+RDAP queries stay in `abuse_contacts` and still show in the engine's own
+`lookup` output; they are not in the `.mmdb`.
 
 ## Appendix — C20: the 178 RIPE-scan geofeeds, individually
 

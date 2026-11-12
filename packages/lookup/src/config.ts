@@ -155,6 +155,15 @@ export interface LookupConfig {
    * data to calibrate against — "technically correct but not a claim this
    * project wants shipped" until real usage validates it. Default false. */
   routeAnomalyEnabled: boolean;
+  /**
+   * Whether lookups may query RIR RDAP servers live (abuse contacts, network
+   * names, geofeed discovery). Default false since 2026-11-12 (`docs/106`
+   * G1): the RIPE Database terms make per-query use "defensible, not
+   * airtight", abuse contacts can be personal data, and live collection is
+   * kept out of the commercial product. Off means every RDAP call returns
+   * nothing and lookups answer from the local tables only.
+   */
+  rdapEnabled: boolean;
   sourcePath: string | null;
 }
 
@@ -173,6 +182,7 @@ const DEFAULTS = {
   rdapDailyQueryCap: 800,
   bulkLookupConcurrency: 32,
   routeAnomalyEnabled: false,
+  rdapEnabled: false,
 };
 
 let cached: LookupConfig | null = null;
@@ -192,6 +202,7 @@ function load(): LookupConfig {
       rdapDailyQueryCap: DEFAULTS.rdapDailyQueryCap,
       bulkLookupConcurrency: DEFAULTS.bulkLookupConcurrency,
       routeAnomalyEnabled: DEFAULTS.routeAnomalyEnabled,
+      rdapEnabled: DEFAULTS.rdapEnabled,
       sourcePath: null,
     };
   }
@@ -258,6 +269,7 @@ function load(): LookupConfig {
       "routeAnomalyEnabled",
       DEFAULTS.routeAnomalyEnabled,
     ),
+    rdapEnabled: parseBooleanValue(file.obj["rdapEnabled"], "rdapEnabled", DEFAULTS.rdapEnabled),
     sourcePath: file.sourcePath,
   };
 }

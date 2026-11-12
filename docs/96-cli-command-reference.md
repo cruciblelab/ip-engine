@@ -207,7 +207,10 @@ and `asnNameFallbackEnabled` (whether the other one still runs to fill
 gaps, or is skipped entirely — default `false` since 2026-11-08, because
 with CAIDA as primary the fallback is RIPE's `asn.txt`, whose commercial
 terms are unresolved; see `docs/106` B4, and `docs/20`'s CAIDA entry for
-the measured 84%-coverage/96.4%-agreement numbers), and `bgpOriginSource`. **No database
+the measured 84%-coverage/96.4%-agreement numbers), `bgpOriginSource`,
+`disabledEnrichmentSources`, `bgpLiveEnabled` and `rdapEnabled` — the
+switches that keep license-unclear and live sources off (`docs/106`,
+"Product configuration"). **No database
 needed at all** — the other DB-free exception besides `collect --csv`.
 
 ### `summary [--out <dir>]`

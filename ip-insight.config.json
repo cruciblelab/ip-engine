@@ -22,7 +22,7 @@
   "sleepModeEnabled": false,
   "sleepModeIdleHours": 72,
   "ipIntelMode": "materialized",
-  "historyCaptureEnabled": true,
+  "historyCaptureEnabled": false,
   "mmdbHistoryFields": false,
   "lookupFeatures": "all",
   "cacheSize": 50000,
@@ -36,5 +36,8 @@
   "bulkCopyIngest": true,
   "asnNamePrimary": "caida",
   "asnNameFallbackEnabled": false,
-  "bgpOriginSource": "routeviews"
+  "bgpOriginSource": "routeviews",
+  "disabledEnrichmentSources": "lacnic-whois-city",
+  "bgpLiveEnabled": false,
+  "rdapEnabled": false
 }

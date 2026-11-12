@@ -61,6 +61,7 @@ import {
 import { extractSingleEntryZip } from "./zip";
 import { iterMrtRibPrefixes, type MrtStats } from "./mrt";
 import { pruneDbIpCoveredByGeofeeds } from "./dbip-prune";
+import { purgeDisabledSourceRows } from "./disabled-sources";
 import { geocodeCityName } from "./geocode";
 import {
   BGP_ORIGIN_SOURCE_IDS,
@@ -449,8 +450,41 @@ export async function stopEnrichment(): Promise<EnrichmentJob | null> {
   return row ?? null;
 }
 
+/**
+ * Start-of-job cleanup for `disabledEnrichmentSources`. At the start, not the
+ * end: a disabled source has no replacement to wait for, and removing its
+ * geofeed rows first lets a DB-IP run later in the same job restore the
+ * DB-IP rows it had pruned underneath them.
+ */
+async function purgeDisabledSources(job: ActiveJob): Promise<void> {
+  const disabled = loadCollectorConfig().disabledEnrichmentSources;
+  if (disabled.length === 0) return;
+  try {
+    const { deletedGeofeedRows, notFullyPurged } = await purgeDisabledSourceRows(disabled);
+    if (deletedGeofeedRows > 0) {
+      logger.info({ disabled, deletedGeofeedRows }, "Removed geofeed rows of sources disabled in config");
+      const dbipRuns = job.sources.some((s) => s.config.id === "dbip-lite") && !disabled.includes("dbip-lite");
+      if (!dbipRuns) {
+        logger.warn(
+          "DB-IP rows that had been pruned under those geofeed rows are still missing, so those addresses have no city until DB-IP is ingested again. Run: ip-insight enrich --sources dbip-lite",
+        );
+      }
+    }
+    if (notFullyPurged.length > 0) {
+      logger.warn(
+        { notFullyPurged },
+        "Disabled sources whose earlier rows may remain in a table other than geofeed_ranges — not removed automatically",
+      );
+    }
+  } catch (err) {
+    // Not fatal: the sources are still skipped; the rows go next run.
+    logger.warn({ err }, "Removing rows of disabled sources failed — retried on the next run");
+  }
+}
+
 async function runJob(job: ActiveJob): Promise<void> {
   try {
+    await purgeDisabledSources(job);
     for (const source of job.sources) {
       if (job.shouldStop) {
         source.status = "skipped";
@@ -685,6 +719,18 @@ async function runSource(
   source.status = "downloading";
   source.startedAt = new Date();
   await persistSource(source);
+
+  // Disabled in config (`disabledEnrichmentSources`): skipped before
+  // anything else, derived sources included, and even when named in
+  // `--sources` — the config is the decision; a command-line list should
+  // not quietly override a licensing call.
+  if (loadCollectorConfig().disabledEnrichmentSources.includes(source.config.id)) {
+    source.status = "skipped";
+    source.errorMessage = "disabled in config (disabledEnrichmentSources)";
+    source.endedAt = new Date();
+    await persistSource(source);
+    return;
+  }
 
   try {
     // Derived sources compute from tables already in this database, so they

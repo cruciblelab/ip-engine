@@ -357,6 +357,26 @@ export interface CollectorConfig {
    * See `docs/104`.
    */
   bgpOriginSource: "ripe-ris" | "routeviews";
+  /**
+   * Enrichment sources switched off without removing them from the code.
+   * Comma-separated registry ids, e.g. `"lacnic-whois-city"`; `"none"` or
+   * absent means none. A disabled source is skipped without downloading,
+   * and at the start of every enrichment run its earlier rows are removed
+   * where that can be done completely (geofeed sources — see
+   * `disabled-sources.ts`); for others the run warns that old rows may
+   * remain. Re-enable by deleting the id from this list.
+   *
+   * Added 2026-11-12 for the licensing audit (`docs/106`): sources whose
+   * commercial-use terms are unclear are turned off this way rather than
+   * deleted, so the decision stays reversible.
+   */
+  disabledEnrichmentSources: string[];
+  /**
+   * Whether `bgp-live run` (RIPE RIS Live, `docs/97`) may run. Default
+   * false since 2026-11-12: it is RIPE RIS data (`docs/106` G4) and a live,
+   * long-running collection, both kept out of the commercial product.
+   */
+  bgpLiveEnabled: boolean;
   /** Which form of the flattened `ip_intel` relation to maintain. Default "view". */
   ipIntelMode: "view" | "materialized" | "off";
   /** Whether each enrichment run ends by capturing a history baseline. Default false. */
@@ -395,6 +415,8 @@ const DEFAULTS = {
   asnNamePrimary: "caida" as const,
   asnNameFallbackEnabled: false,
   bgpOriginSource: "routeviews" as const,
+  disabledEnrichmentSources: [] as string[],
+  bgpLiveEnabled: false,
   ipIntelMode: "view" as const,
   historyCaptureEnabled: false,
   mmdbHistoryFields: false,
@@ -433,6 +455,8 @@ export function loadCollectorConfig(): CollectorConfig {
       asnNamePrimary: DEFAULTS.asnNamePrimary,
       asnNameFallbackEnabled: DEFAULTS.asnNameFallbackEnabled,
       bgpOriginSource: DEFAULTS.bgpOriginSource,
+      disabledEnrichmentSources: DEFAULTS.disabledEnrichmentSources,
+      bgpLiveEnabled: DEFAULTS.bgpLiveEnabled,
       ipIntelMode: DEFAULTS.ipIntelMode,
       historyCaptureEnabled: DEFAULTS.historyCaptureEnabled,
       mmdbHistoryFields: DEFAULTS.mmdbHistoryFields,
@@ -558,6 +582,17 @@ export function loadCollectorConfig(): CollectorConfig {
     DEFAULTS.sleepModeIdleHours,
     { min: 1, max: 8760 },
   );
+  const disabledEnrichmentSources =
+    validateAgainstKnown(
+      parseListValue(file.obj["disabledEnrichmentSources"], "disabledEnrichmentSources", "none"),
+      KNOWN_ENRICHMENT_SOURCES.map((s) => s.id),
+      "disabledEnrichmentSources",
+    ) ?? [];
+  const bgpLiveEnabled = parseBooleanValue(
+    file.obj["bgpLiveEnabled"],
+    "bgpLiveEnabled",
+    DEFAULTS.bgpLiveEnabled,
+  );
   const historyCaptureEnabled = parseBooleanValue(
     file.obj["historyCaptureEnabled"],
     "historyCaptureEnabled",
@@ -625,6 +660,8 @@ export function loadCollectorConfig(): CollectorConfig {
     asnNamePrimary,
     asnNameFallbackEnabled,
     bgpOriginSource,
+    disabledEnrichmentSources,
+    bgpLiveEnabled,
     sourcePath: file.sourcePath,
   };
 }

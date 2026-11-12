@@ -682,6 +682,12 @@ program
     console.log(`  collectionStatuses:    ${cfg.collectionStatuses ? cfg.collectionStatuses.join(", ") : "(all)"}`);
     console.log(`  enrichment:            ${cfg.enrichment ? cfg.enrichment.join(", ") : "(all — database_full)"}`);
     console.log(`  lookupFeatures:        ${lookupCfg.features ? lookupCfg.features.join(", ") : "(all)"}`);
+    console.log(
+      `  rdapEnabled:           ${lookupCfg.rdapEnabled}` +
+        (lookupCfg.rdapEnabled
+          ? "  (lookups may query RIR RDAP live: abuse contacts, network names, geofeed discovery)"
+          : "  (no live RDAP queries — lookups answer from local tables only, docs/106 G1)"),
+    );
     console.log(`  batchSize:             ${cfg.batchSize}`);
     console.log(
       `  fetchRetry:            ${cfg.fetchRetry.maxAttempts} attempts, ${cfg.fetchRetry.baseDelayMs}ms base delay, ${cfg.fetchRetry.timeoutMs}ms timeout`,
@@ -740,6 +746,14 @@ program
     console.log(
       `  bgpOriginSource:       ${cfg.bgpOriginSource}` +
         `  (exclusive — the other collector project does not run; switching purges its rows once the selected one completes)`,
+    );
+    console.log(
+      `  disabledEnrichmentSources: ${cfg.disabledEnrichmentSources.length ? cfg.disabledEnrichmentSources.join(", ") : "(none)"}` +
+        "  (skipped without downloading; their geofeed rows are removed at the start of each enrich run)",
+    );
+    console.log(
+      `  bgpLiveEnabled:        ${cfg.bgpLiveEnabled}` +
+        (cfg.bgpLiveEnabled ? "  (bgp-live run allowed — RIPE RIS Live)" : "  (bgp-live run refuses — RIPE RIS Live kept off, docs/106 G4)"),
     );
   });
 

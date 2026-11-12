@@ -202,6 +202,9 @@ export async function fetchRdapObject(
   rir?: string | null,
 ): Promise<RdapResponse | null> {
   const config = loadLookupConfig();
+  // The single gate for every live RDAP query (abuse contact, network name,
+  // geofeed discovery, prefix-check) — all of them start here.
+  if (!config.rdapEnabled) return null;
   const registry = rir?.trim().toUpperCase() ?? "";
   const endpoint = RDAP_ENDPOINTS[registry] ?? RDAP_FALLBACK_ENDPOINT;
   // Budget is keyed by the endpoint actually being called, not by the

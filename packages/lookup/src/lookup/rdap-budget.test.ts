@@ -58,3 +58,27 @@ describe("RDAP per-registry query budget", () => {
     expect(stats["LACNIC"]).toBeUndefined();
   });
 });
+
+// `rdapEnabled` (lookup config, default false since 2026-11-12, docs/106
+// G1). The test runs against the repository's own ip-insight.config.json,
+// which sets it false — the shipped configuration, not a mocked one. What
+// matters is the same thing the budget tests pin: the request is never
+// made, not merely that its answer is discarded.
+describe("rdapEnabled: false", () => {
+  it("returns nothing without making any network request or spending budget", async () => {
+    const { vi } = await import("vitest");
+    const { loadLookupConfig } = await import("../config");
+    const { fetchRdapObject } = await import("./rdap");
+    expect(loadLookupConfig().rdapEnabled).toBe(false);
+
+    __resetRdapBudgets();
+    const spy = vi.spyOn(globalThis, "fetch");
+    try {
+      expect(await fetchRdapObject("192.0.2.1", "ARIN")).toBeNull();
+      expect(spy).not.toHaveBeenCalled();
+      expect(rdapBudgetStats().find((s) => s.rir === "ARIN")?.used ?? 0).toBe(0);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+});

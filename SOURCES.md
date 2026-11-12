@@ -109,7 +109,12 @@ as a fact.
   in this file. A consumer building a product for an African market should
   read that field and budget for coarser precision there, not assume city-
   level accuracy on parity with a European or North American address.
-- **LACNIC bulk whois dump** (`lacnic.db.gz`) — uniquely among the five
+- **LACNIC bulk whois dump** (`lacnic.db.gz`) — **disabled since
+  2026-11-12** (`disabledEnrichmentSources`; no explicit commercial grant,
+  `docs/106` C3). Latin American addresses fall back to DB-IP: country
+  agrees 99.65%, city within 50 km for ~70% where both have coordinates
+  (measured 2026-11-11). Re-enable by removing it from that list. —
+  uniquely among the five
   RIRs, LACNIC's bulk whois carries a structured `city:` field directly on
   `inetnum`/`inet6num` records (not present in RIPE's privacy-stripped bulk
   dump, and only free-text in APNIC's `descr:`). Parsed directly — no
