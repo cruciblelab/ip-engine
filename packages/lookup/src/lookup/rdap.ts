@@ -30,7 +30,13 @@
  */
 import { lookup as dnsLookup } from "node:dns/promises";
 import { sql } from "drizzle-orm";
-import { db, abuseContactsTable, geofeedRangesTable, networkNamesTable } from "@workspace/db";
+import {
+  db,
+  abuseContactsTable,
+  geofeedRangesTable,
+  networkNamesTable,
+  GEOFEED_LIVE_DISCOVERY_SOURCE_ID,
+} from "@workspace/db";
 import { logger, parseCidr, geofeedField, geofeedCountry, isPubliclyRoutable } from "@workspace/shared";
 import { loadLookupConfig } from "../config";
 
@@ -71,7 +77,7 @@ const RDAP_CACHE_SOURCE = "rdap-live";
  * this module is responsible for refreshing, since nothing else revisits
  * it) apart from one a bulk source published (which `enrich` already
  * refreshes on its own schedule, and must never be re-fetched live). */
-export const GEOFEED_CACHE_SOURCE = "geofeed-discovery:rdap-live";
+export const GEOFEED_CACHE_SOURCE = GEOFEED_LIVE_DISCOVERY_SOURCE_ID;
 
 /**
  * Per-registry query budget, enforced here rather than discovered by being

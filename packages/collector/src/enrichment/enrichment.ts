@@ -60,6 +60,7 @@ import {
 } from "@workspace/shared";
 import { extractSingleEntryZip } from "./zip";
 import { iterMrtRibPrefixes, type MrtStats } from "./mrt";
+import { pruneDbIpCoveredByGeofeeds } from "./dbip-prune";
 import { geocodeCityName } from "./geocode";
 import {
   BGP_ORIGIN_SOURCE_IDS,
@@ -1975,15 +1976,7 @@ async function ingestDbIpLiteCsv(
   // refresh schedules.
   try {
     const before = source.recordsIngested;
-    const result = await db.execute<{ deleted: number }>(sql`
-      WITH removed AS (
-        DELETE FROM dbip_lite_ranges d
-        WHERE EXISTS (SELECT 1 FROM geofeed_ranges g WHERE g.network >>= d.network)
-        RETURNING 1
-      )
-      SELECT count(*)::int AS deleted FROM removed
-    `);
-    const deleted = result.rows[0]?.deleted ?? 0;
+    const deleted = await pruneDbIpCoveredByGeofeeds();
     source.recordsIngested = before - deleted;
     job.totalIngested -= deleted;
     logger.info(

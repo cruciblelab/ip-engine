@@ -43,6 +43,7 @@
 import { createHash } from "node:crypto";
 import { sql } from "drizzle-orm";
 import { db } from "../index";
+import { GEOFEED_LIVE_DISCOVERY_SOURCE_ID } from "../schema/geofeedRanges";
 
 export type IpIntelMode = "view" | "materialized" | "off";
 
@@ -114,7 +115,11 @@ FROM (
   SELECT DISTINCT network FROM (
     SELECT network FROM ip_blocks
     UNION ALL SELECT network FROM bgp_origin_ranges
+    -- Live-discovered geofeed rows are left out here and in the gf LATERAL
+    -- below: they are collected at query time, and ip_intel is what the
+    -- customer .mmdb is built from (see GEOFEED_LIVE_DISCOVERY_SOURCE_ID).
     UNION ALL SELECT network FROM geofeed_ranges
+      WHERE source_id <> '${GEOFEED_LIVE_DISCOVERY_SOURCE_ID}'
     -- Same reasoning as geofeed_ranges directly above: a DB-IP Lite range
     -- narrower than the surrounding allocation needs its own base row or a
     -- lookup would match the wider row and miss it.
@@ -186,6 +191,7 @@ LEFT JOIN LATERAL (
 LEFT JOIN LATERAL (
   SELECT x.network, x.city, x.region, x.postal, x.country, x.latitude, x.longitude
   FROM geofeed_ranges x WHERE x.network >>= b.network
+    AND x.source_id <> '${GEOFEED_LIVE_DISCOVERY_SOURCE_ID}'
   ORDER BY masklen(x.network) DESC, x.confidence DESC LIMIT 1) gf ON true
 -- Only consulted when gf found nothing — a computed third-party guess must
 -- never outrank a real operator geofeed, regardless of which one has the

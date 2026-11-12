@@ -26,6 +26,22 @@ import {
  * geofeed can carve a big allocation into smaller, more specific
  * city-level prefixes.
  */
+/**
+ * `source_id` of geofeed rows found *at query time*: when a lookup finds no
+ * geofeed for an address, `lookup/rdap.ts` asks the RIR's RDAP server for
+ * the network's `geofeed:` link, fetches it, and caches the result here.
+ *
+ * Those rows are live-collected, not bulk-ingested, so they are kept out of
+ * everything customers receive (2026-11-12, operator decision: live and
+ * long-running collection stays out of the commercial product). Concretely:
+ *  - `ip_intel` (and so the `.mmdb` export) ignores them — `views/ip-intel.ts`;
+ *  - DB-IP's "already covered by a geofeed" prune ignores them, or the
+ *    `.mmdb` would lose DB-IP's fallback answer under every live row while
+ *    also not carrying the live row — `ingestDbIpLiteCsv` in enrichment.ts.
+ * The engine's own live lookups (`lookup.ts`) still use them.
+ */
+export const GEOFEED_LIVE_DISCOVERY_SOURCE_ID = "geofeed-discovery:rdap-live";
+
 export const geofeedRangesTable = pgTable(
   "geofeed_ranges",
   {

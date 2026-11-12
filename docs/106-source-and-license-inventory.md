@@ -235,6 +235,31 @@ third-party consumption is the stated purpose.
 | G3 | `security.txt` (RFC 9116) | Self-published for exactly this purpose | 🟢 |
 | G4 | RIPE RIS Live WebSocket (`bgp-live run`, `docs/97`) — **added in Phase 1, missed in Phase 0** | RIPE RIS data, same terms as B1/B2. Internal monitoring only: `lookup` and the `.mmdb` never read `bgp_live_events`. Seeds from `bgp_origin_ranges`, so it now compares RIS Live against a RouteViews baseline — works, but `peer_count` scales differ. If it ever feeds anything customers see, B1's logo condition comes with it. | 🟡 |
 
+**Live and long-running collection stays out of the customer product
+(operator decision, 2026-11-12).** The customer gets the `.mmdb`, built
+from `ip_intel`. Checked what reaches it:
+
+- **Long-running collection** (history: `prefix_history`, `origin-changes`,
+  the `.mmdb`'s `stable_since`): `stable_since` is the only field that can
+  reach the file, and `mmdbHistoryFields` is off by default. Nothing else.
+- **Live collection** (G1 RDAP, G2 reverse DNS, G3 `security.txt`, G4 RIS
+  Live): none of their fields are in the `.mmdb` — **except one path, found
+  and closed on 2026-11-12.** When the engine's own lookup finds no geofeed
+  for an address, `lookup/rdap.ts` discovers one over RDAP and caches it in
+  `geofeed_ranges`. `ip_intel` read that table without looking at
+  `source_id`, so live-discovered rows reached the customer file. Worse,
+  DB-IP's prune treated them as coverage and deleted the DB-IP answer
+  underneath. Fixed both: `ip_intel` and the prune now ignore rows tagged
+  `GEOFEED_LIVE_DISCOVERY_SOURCE_ID` (`schema/geofeedRanges.ts`); the
+  engine's own live lookups still use them. Pinned by
+  `dbip-prune.integration.test.ts`, which failed 3/3 against the old code
+  (the customer view answered with the live row's city) and passes on the
+  new.
+
+  On an existing database: DB-IP rows already pruned under live rows stay
+  missing until DB-IP is ingested again — run
+  `ip-insight enrich --sources dbip-lite` once after updating.
+
 ## Phase H — Computed by us
 
 | ID | Item | Derived from | Risk |
