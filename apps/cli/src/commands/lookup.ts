@@ -76,7 +76,11 @@ export async function runLookup(ip: string, opts: { json?: boolean }): Promise<v
           ? `, ${result.asn.originated_addresses.toLocaleString("en-US")} IPv4 addresses announced`
           : "") +
         (result.asn.peer_visibility != null
-          ? `, seen by ${result.asn.peer_visibility} collectors`
+          ? // Peers, not collectors — this always counted peers. And the scale
+            // depends on the project (RIS ~440, RouteViews ~20), so name it.
+            `, seen by ${result.asn.peer_visibility} ${
+              result.asn.source === "bgp-routeviews" ? "RouteViews" : result.asn.source === "bgp-ris" ? "RIS" : "BGP"
+            } peers`
           : ""),
     );
     // originated_prefixes_v6 was already computed and returned by the API,

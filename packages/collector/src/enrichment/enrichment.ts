@@ -1363,6 +1363,18 @@ async function purgeDeselectedBgpOriginSource(job: ActiveJob): Promise<void> {
         { active, cleared },
         "Deleted BGP origin ranges belonging to a deselected collector project",
       );
+      // asn-reach / neighborhood-stats / asn-profile are computed *from*
+      // bgp_origin_ranges. If this job doesn't recompute them, they keep
+      // describing the old project — found on a real switch: "seen by 342"
+      // (RIS's scale) next to RouteViews data, whose maximum is ~20.
+      const derivedIds = KNOWN_ENRICHMENT_SOURCES.filter((s) => s.kind === "derived").map((s) => s.id);
+      const missingDerived = derivedIds.filter((id) => !job.sources.some((s) => s.config.id === id));
+      if (missingDerived.length > 0) {
+        logger.warn(
+          { active, missingDerived },
+          `Tables derived from BGP data still describe the previous project. Run: ip-insight enrich --sources ${missingDerived.join(",")}`,
+        );
+      }
     }
   } catch (err) {
     // Non-fatal, same reasoning as the ASN-name purge: the ingestion

@@ -539,3 +539,21 @@ then `ip-insight enrich --sources routeviews-rib-ipv4,routeviews-rib-ipv6`.
 In the sandbox this restored 1,172,030 + 273,638 rows; `46.104.60.90`
 went from `ASN: -` to `AS20978` (TT Mobil, matching ipinfo.io).
 `pnpm test`: 174/174.
+
+**Follow-up the same day: derived tables stayed on the old project.**
+After recovery the phone showed `AS20978 [bgp-routeviews]` next to
+"seen by 342 collectors" — a RIS-scale number (RouteViews' maximum is
+~20). `asn-reach`, `neighborhood-stats` and `asn-profile` are computed
+*from* `bgp_origin_ranges`; the recovery ran only the two RouteViews
+sources, so those tables still described RIS. Exactly the
+stale-data-from-a-deselected-source problem this document started from,
+one layer down.
+
+- The purge now warns, whenever it deletes rows and the job didn't include
+  them, naming the command to run:
+  `ip-insight enrich --sources asn-reach,neighborhood-stats,asn-profile`.
+  Reproduced and verified: the warning appeared, and after the command the
+  same lookup read "seen by 19 RouteViews peers" (table maximum 20).
+- `ip-insight lookup` said "collectors"; it was always counting *peers*
+  (true for RIS too). Now "seen by N RouteViews peers" / "RIS peers",
+  named from `asn.source`.
