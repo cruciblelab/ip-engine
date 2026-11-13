@@ -30,6 +30,16 @@ import {
  * the dumps we can legally ingest", never "this network has no abuse
  * contact".
  */
+/**
+ * `source` of rows `lookup/rdap.ts` caches from live RDAP queries, in both
+ * `abuse_contacts` and `network_names`. While `rdapEnabled` is false, every
+ * `enrich` run removes them (`enrichment/rdap-cache-purge.ts`): RDAP abuse
+ * contacts can be personal data, and live collection is kept out of the
+ * product (`docs/106` G1). `security.txt` rows are self-published contacts
+ * and are left alone.
+ */
+export const RDAP_LIVE_CACHE_SOURCE = "rdap-live";
+
 export const abuseContactsTable = pgTable(
   "abuse_contacts",
   {

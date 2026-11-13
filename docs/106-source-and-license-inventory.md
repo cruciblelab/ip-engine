@@ -40,7 +40,7 @@ software dependencies (`pnpm licenses list --prod`: 117 packages).
 
 | Phase | Area | Items | 🔴 | 🟠 | 🟡 | 🟢 | ⚪ |
 |---|---|---|---|---|---|---|---|
-| A | RIR & IANA registry data | 7 | – | 1 | 5 | 1 | – |
+| A | RIR & IANA registry data | 7 (verified Phase 2) | 1 | – | 2 | 4 | – |
 | B | BGP, ASN, routing | 6 (B1, B2, B4 ⏸ since Phase 1) | – | – | 3 | – | – |
 | C | Geolocation | 20 items = 197 sources (C3 ⏸ since 2026-11-12) | – | – | 13 | 6 | – |
 | D | Cloud / CDN ranges | 9 | – | – | 9 | – | – |
@@ -109,13 +109,13 @@ for its phase, not a conclusion.
 
 | ID | Source | Recorded license | Evidence | Risk |
 |---|---|---|---|---|
-| A1 | ARIN delegated-extended | Public, RIR terms | Generalised from A3's header | 🟡 |
-| A2 | RIPE NCC delegated-extended | Public, RIR terms | Generalised from A3's header; tension with B4 | 🟠 |
+| A1 | ARIN delegated-extended | No terms stated anywhere found | FTP README + statistics pages read 2026-11-13 | 🟡 no restriction found, no explicit grant |
+| A2 | RIPE NCC delegated-extended | RIPE NCC Copyright Statement | Read 2026-11-13: README points to a "conditions" file that contains none; the general statement then applies | 🔴 commercial use needs written authorisation |
 | A3 | APNIC delegated-extended | Liability disclaimer only | File header, quoted, 2026-08-19 | 🟢 |
-| A4 | LACNIC delegated-extended | Public, RIR terms | Generalised from A3's header | 🟡 |
-| A5 | AFRINIC delegated-extended | Public, RIR terms | Generalised from A3's header | 🟡 |
-| A6 | IANA special-purpose IPv4 (`iana-ipv4-special`) | "Public registry data" | Registry field only; IANA's terms not read | 🟡 |
-| A7 | IANA special-purpose IPv6 (`iana-ipv6-special`) | "Public registry data" | Registry field only; IANA's terms not read | 🟡 |
+| A4 | LACNIC delegated-extended | No terms stated anywhere found | FTP README read 2026-11-13; website terms page is script-only, not readable here | 🟡 |
+| A5 | AFRINIC delegated-extended | "freely available for download and use", liability disclaimer only | FTP README, quoted 2026-11-13 | 🟢 |
+| A6 | IANA special-purpose IPv4 (`iana-ipv4-special`) | IANA/IETF joint statement: "may be freely used by any party for any purpose", CC0 | iana.org/help/licensing-terms read 2026-11-13 | 🟢 |
+| A7 | IANA special-purpose IPv6 (`iana-ipv6-special`) | IANA/IETF joint statement: "may be freely used by any party for any purpose", CC0 | iana.org/help/licensing-terms read 2026-11-13 | 🟢 |
 
 ## Phase B — BGP, ASN, routing
 
@@ -123,7 +123,7 @@ for its phase, not a conclusion.
 |---|---|---|---|---|
 | B1 | RIPE RIS whois IPv4 (`ris-whois-ipv4`) | RIS commercial-use terms: logo + link + paragraph | RIPE commercial-use page, 2026-08-24/25 | ⏸ replaced by B6 as default, 2026-11-08 [🔴 logo never granted] |
 | B2 | RIPE RIS whois IPv6 (`ris-whois-ipv6`) | same | same | ⏸ same [🔴] |
-| B3 | CAIDA AS-organizations (`caida-asn-names`) | CAIDA AUA, attribution | AUA PDF read directly, 2026-08-24; public AUA page re-read 2026-11-08 | 🟡 **downgraded in Phase 1** — see note below |
+| B3 | CAIDA AS-organizations (`caida-asn-names`) | CAIDA AUA, attribution | AUA PDF read directly, 2026-08-24; public AUA page re-read 2026-11-08 and 2026-11-13 | 🟡 for API answers; 🔴 inside a sold `.mmdb` (licence is "non-transferable", copy/modify/use only) — see "Selling the `.mmdb` itself" |
 | B4 | RIPE `asn.txt` (`ripe-asn-names`) | Unresolved | RIPE Copyright Statement, quoted, 2026-08-24 | ⏸ off by default since 2026-11-08 [🔴] — see Phase 1 log |
 | B5 | RPKI VRPs (`rpki-vrp`) | No terms found | rpki-client site + RFC 6480 purpose | 🟡 |
 
@@ -294,8 +294,8 @@ By risk, not by letter:
 1. ~~**B1, B2, B4** — the three 🔴.~~ **Done 2026-11-08** (Phase 1 log).
    Follow-up left from it: B6's confirmation message to RouteViews, and
    B3's question to CAIDA (can go in Phase 2's batch of questions).
-2. **A1–A7** — re-check each RIR file and IANA registry individually;
-   resolve the A2/B4 consistency question.
+2. ~~**A1–A7**~~ **Done 2026-11-13** (Phase 2 log): A3, A5, A6, A7 🟢;
+   A1, A4 🟡; A2 🔴 — consistent with B4. A2 decision pending.
 3. **I3** — decide the license, then add the file.
 4. **C2, C3, C6** — the three 🟠 in geolocation.
 5. **D1–D9, F2, B5, B3** — read each provider's actual terms (B3 added in
@@ -558,15 +558,93 @@ warning; `2.152.8.5` went from "Bogotá D.C, CO [geofeed]" to no location,
 then — after `enrich --sources dbip-lite` — to "Bogotá, Bogota D.C., CO
 (4.71099, -74.0721) [dbip-lite]". `bgp-live run` refuses with the reason.
 `rdapEnabled: false` is pinned by a test asserting no network request is
-made and no budget spent. `pnpm test`: 175/175.
+made and no budget spent; since 2026-11-13 it also makes every `enrich`
+remove what earlier RDAP queries cached (abuse contacts, network names,
+discovered geofeeds; `security.txt` contacts stay) —
+`rdap-cache-purge.integration.test.ts`. `pnpm test`: 175/175.
 
 **Still on, deliberately:** B6 RouteViews and B3 CAIDA (turning them off
 removes ASN, ASN names, size rank and RPKI status from the product — terms
 read as permitting our use, see their rows), A1–A7 RIR/IANA files (the
 product's base; their individual verification is Phase 2), and every 🟡
-"published for this purpose" source. Cached abuse contacts from earlier
-RDAP queries stay in `abuse_contacts` and still show in the engine's own
-`lookup` output; they are not in the `.mmdb`.
+"published for this purpose" source. Cached RDAP abuse contacts are removed
+by the next `enrich` (see above).
+
+## Phase 2 log — A1–A7, RIR and IANA files (2026-11-13)
+
+Each RIR's own delegated-extended file, its FTP README, and its website
+were read directly. Copies with SHA-256 fingerprints are kept outside this
+public repository (`phase2-rir-2026-11-13`, delivered privately).
+
+| ID | What the RIR itself says | Verdict |
+|---|---|---|
+| A3 APNIC | In the file header and README: "The files are freely available for download and use on the condition that APNIC will not be held responsible for any loss or damage arising from the use of the information contained in these reports." | 🟢 |
+| A5 AFRINIC | Same sentence in its README, naming AFRINIC. | 🟢 |
+| A1 ARIN | Nothing in the file or README. The README describes the format as "a published RIR standard, on which other parties are expected to rely"; the statistics page says the files "are available for use". The joint RIR statement describes the purpose as "to facilitate research on and analysis of the global use of Internet number resources". No restriction found — and no explicit commercial grant either. | 🟡 |
+| A4 LACNIC | Nothing in the file or README. Its website terms page renders only with JavaScript and could not be read from here. | 🟡 — read the page in a browser |
+| A2 RIPE NCC | The stats README says "the conditions for its use are set out in" `_README-ripe-stats.txt`; that file holds only a format description. With no stated permission, the RIPE NCC Copyright Statement applies: "RIPE NCC Materials" are anything on a `ripe.net` domain (`ftp.ripe.net` included), and "may not be used, reproduced and made available to third parties without prior written authorisation from the RIPE NCC", except "for private purposes, for public non-commercial purpose, for research, for educational or demonstration purposes, or if the materials in question specifically state that use of the material is permissible". A commercial product is none of those. | 🔴 |
+| A6/A7 IANA | "IANA and IETF intend that the Protocol Registries may be freely used by any party for any purpose", with copyright dedicated to the public domain (CC0). | 🟢 |
+
+**The Phase 0 question "is A2 consistent with B4?" — yes, both are
+restricted.** `asn.txt` and the delegated stats sit on the same server
+under the same statement; neither says anything that permits commercial
+use. The NRO's combined file (`nro-delegated-stats`) is no way around it:
+it is hosted on `ftp.ripe.net` too.
+
+(RIPE's separate "RIPE Data Repository Terms and Conditions" — no
+commercial use, no redistribution — govern an account-gated research
+archive, not these public FTP files. Not applied here, but it shows the
+direction RIPE takes with data it publishes.)
+
+**What A2 feeds.** `ip_blocks` rows for the RIPE region (Europe, Middle
+East, Central Asia — Turkey included): the engine's "Network / Allocated /
+RIR" lines, and, in the `.mmdb`, `country` only as the last fallback
+(after geofeed and DB-IP, `geo_source: country-estimate`). With
+`dbipLiteIpv6: false`, that fallback is the main country source for RIPE
+IPv6. **Not decided yet** — options in the summary for the operator.
+
+## Selling the `.mmdb` itself (2026-11-13)
+
+Selling answers through an API and selling the file are different acts:
+the file *is* a copy of the data, handed over. Field by field, what can go
+in a file that is sold:
+
+| `.mmdb` field | Comes from | In a sold file |
+|---|---|---|
+| `country`, `city`, `region`, `location` | Geofeeds (C4–C20), DB-IP Lite (C2), RIR country as last fallback (A1–A5) | Geofeeds 🟡 (RFC 8805 publishes them for geolocation providers); DB-IP 🟢 — its FAQ: "allowed to use the database in a commercial product and redistribute it"; RIR fallback 🟢/🟡 except RIPE 🔴 |
+| `postal` | Geofeeds | 🟡 |
+| `asn` | RouteViews (B6) | 🟢 CC BY 4.0, attribution must travel with the file |
+| `asn_name` | CAIDA (B3) | 🔴 — the AUA grants "a limited, non-exclusive, **non-transferable**, non-assignable, and terminable license to copy, modify, and use the data … No license is granted for any other purpose". Handing a copy to a buyer is not covered |
+| `asn_size_rank` | Computed from RouteViews | 🟢 (inherits RouteViews attribution) |
+| `rpki_status` | RPKI VRPs (B5) + RouteViews | ⚪ **unknown — B5 terms not yet read.** Must be checked before any sale |
+| `cloud_provider`, `is_cloud` | Provider lists (D1–D9) | 🟡 |
+| `verified_bot`, `verified_bot_operator` | Operators' own lists (E1–E12) | 🟢 |
+| `special_purpose` | IANA (A6/A7) | 🟢 CC0 |
+| `is_tor`, `is_threat` | Tor list, Feodo (F1, F3) | 🟢 CC0 |
+| `is_vpn` | Mullvad (F2) | 🟡 terms unread |
+| `is_anycast`, `geo_source` | Ours | 🟢 |
+
+**A CC BY constraint that matters for a paid file.** CC BY 4.0, Section
+2(a)(5)(B): "You may not offer or impose any additional or different
+terms or conditions on, or apply any Effective Technological Measures to,
+the Licensed Material if doing so restricts exercise of the Licensed
+Rights by any recipient of the Licensed Material." And for a database
+built on one: "the Adapter's License You apply must not prevent
+recipients of the Adapted Material from complying with this Public
+License." In plain terms: a buyer may lawfully take the DB-IP-, RouteViews-
+and GeoNames-derived parts of a sold file and share them on; our licence
+cannot forbid that. The file can carry our own terms for what is ours,
+not for those parts. A lawyer should word the customer licence.
+
+**What this means for selling a file.** A file without `asn_name` and
+without the RIPE country fallback is sellable once B5 (RPKI) is read —
+with attribution inside the file and its documentation. Its value is
+mostly convenience: geography is at DB-IP Lite's level outside geofeed
+coverage, and DB-IP Lite is a free download. What the file adds is one
+daily build combining operator geofeeds, ASN, RPKI status, verified bots,
+cloud, Tor and threat flags, with the source of every location stated.
+No market data was gathered on what that sells for; any price would be a
+guess.
 
 ## Appendix — C20: the 178 RIPE-scan geofeeds, individually
 

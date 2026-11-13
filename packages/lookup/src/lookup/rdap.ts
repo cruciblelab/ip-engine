@@ -36,6 +36,7 @@ import {
   geofeedRangesTable,
   networkNamesTable,
   GEOFEED_LIVE_DISCOVERY_SOURCE_ID,
+  RDAP_LIVE_CACHE_SOURCE,
 } from "@workspace/db";
 import { logger, parseCidr, geofeedField, geofeedCountry, isPubliclyRoutable } from "@workspace/shared";
 import { loadLookupConfig } from "../config";
@@ -72,7 +73,7 @@ const RDAP_ENDPOINTS: Record<string, string> = {
   AFRINIC: "https://rdap.afrinic.net/rdap/ip/",
 };
 const RDAP_FALLBACK_ENDPOINT = RDAP_ENDPOINTS["RIPENCC"]!;
-const RDAP_CACHE_SOURCE = "rdap-live";
+const RDAP_CACHE_SOURCE = RDAP_LIVE_CACHE_SOURCE;
 /** Exported so lookup.ts can tell an RDAP-discovered geofeed row (which
  * this module is responsible for refreshing, since nothing else revisits
  * it) apart from one a bulk source published (which `enrich` already

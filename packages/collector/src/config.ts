@@ -377,6 +377,13 @@ export interface CollectorConfig {
    * long-running collection, both kept out of the commercial product.
    */
   bgpLiveEnabled: boolean;
+  /**
+   * The lookup config's `rdapEnabled`, read here too (same key, same
+   * default) so `enrich` can act on it: while false, each run removes what
+   * earlier live RDAP queries cached — abuse contacts, network names,
+   * discovered geofeeds (`rdap-cache-purge.ts`).
+   */
+  rdapEnabled: boolean;
   /** Which form of the flattened `ip_intel` relation to maintain. Default "view". */
   ipIntelMode: "view" | "materialized" | "off";
   /** Whether each enrichment run ends by capturing a history baseline. Default false. */
@@ -417,6 +424,7 @@ const DEFAULTS = {
   bgpOriginSource: "routeviews" as const,
   disabledEnrichmentSources: [] as string[],
   bgpLiveEnabled: false,
+  rdapEnabled: false,
   ipIntelMode: "view" as const,
   historyCaptureEnabled: false,
   mmdbHistoryFields: false,
@@ -457,6 +465,7 @@ export function loadCollectorConfig(): CollectorConfig {
       bgpOriginSource: DEFAULTS.bgpOriginSource,
       disabledEnrichmentSources: DEFAULTS.disabledEnrichmentSources,
       bgpLiveEnabled: DEFAULTS.bgpLiveEnabled,
+      rdapEnabled: DEFAULTS.rdapEnabled,
       ipIntelMode: DEFAULTS.ipIntelMode,
       historyCaptureEnabled: DEFAULTS.historyCaptureEnabled,
       mmdbHistoryFields: DEFAULTS.mmdbHistoryFields,
@@ -593,6 +602,7 @@ export function loadCollectorConfig(): CollectorConfig {
     "bgpLiveEnabled",
     DEFAULTS.bgpLiveEnabled,
   );
+  const rdapEnabled = parseBooleanValue(file.obj["rdapEnabled"], "rdapEnabled", DEFAULTS.rdapEnabled);
   const historyCaptureEnabled = parseBooleanValue(
     file.obj["historyCaptureEnabled"],
     "historyCaptureEnabled",
@@ -662,6 +672,7 @@ export function loadCollectorConfig(): CollectorConfig {
     bgpOriginSource,
     disabledEnrichmentSources,
     bgpLiveEnabled,
+    rdapEnabled,
     sourcePath: file.sourcePath,
   };
 }

@@ -62,6 +62,7 @@ import { extractSingleEntryZip } from "./zip";
 import { iterMrtRibPrefixes, type MrtStats } from "./mrt";
 import { pruneDbIpCoveredByGeofeeds } from "./dbip-prune";
 import { purgeDisabledSourceRows } from "./disabled-sources";
+import { purgeRdapCache } from "./rdap-cache-purge";
 import { geocodeCityName } from "./geocode";
 import {
   BGP_ORIGIN_SOURCE_IDS,
@@ -485,6 +486,16 @@ async function purgeDisabledSources(job: ActiveJob): Promise<void> {
 async function runJob(job: ActiveJob): Promise<void> {
   try {
     await purgeDisabledSources(job);
+    if (!loadCollectorConfig().rdapEnabled) {
+      try {
+        const removed = await purgeRdapCache();
+        if (removed.abuseContacts + removed.networkNames + removed.geofeedRows > 0) {
+          logger.info(removed, "Removed data cached by live RDAP queries (rdapEnabled is false)");
+        }
+      } catch (err) {
+        logger.warn({ err }, "Removing the RDAP cache failed — retried on the next run");
+      }
+    }
     for (const source of job.sources) {
       if (job.shouldStop) {
         source.status = "skipped";
