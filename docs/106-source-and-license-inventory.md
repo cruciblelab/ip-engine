@@ -125,7 +125,7 @@ for its phase, not a conclusion.
 | B2 | RIPE RIS whois IPv6 (`ris-whois-ipv6`) | same | same | ⏸ same [🔴] |
 | B3 | CAIDA AS-organizations (`caida-asn-names`) | CAIDA AUA, attribution | AUA PDF read directly, 2026-08-24; public AUA page re-read 2026-11-08 and 2026-11-13 | 🟡 for API answers; 🔴 inside a sold `.mmdb` (licence is "non-transferable", copy/modify/use only) — see "Selling the `.mmdb` itself" |
 | B4 | RIPE `asn.txt` (`ripe-asn-names`) | Unresolved | RIPE Copyright Statement, quoted, 2026-08-24 | ⏸ off by default since 2026-11-08 [🔴] — see Phase 1 log |
-| B5 | RPKI VRPs (`rpki-vrp`) | Validated output of all five RIRs' RPKI; ARIN's Relying Party Agreement restricts onward disclosure | ARIN RPA (13 Feb 2023) read 2026-11-13; other four RIRs' RPKI terms not yet read; rpki-client console returned 503 | 🟠 — see "B5 note" |
+| B5 | RPKI VRPs (`rpki-vrp`) | Validated output of all five RIRs' RPKI | RIPE repository T&C and ARIN RPA read 2026-11-13; APNIC/LACNIC/AFRINIC unread | 🔴 for a paid product — RIPE forbids "services based on the data"; ARIN leaves commercial use uncovered (B5 note) |
 
 | B6 | RouteViews RIBs (`routeviews-rib-ipv4`, `routeviews-rib-ipv6`) — **default BGP source since 2026-11-08** | CC BY 4.0 + RouteViews Commercial Terms of Use: statement + link, logo, boilerplate | `routeviews.org/routeviews/licenses/` read first-hand 2026-11-08, quoted in `docs/103` | 🟡 two wording conflicts on RouteViews' own site (below) |
 
@@ -260,29 +260,52 @@ from `ip_intel`. Checked what reaches it:
   missing until DB-IP is ingested again — run
   `ip-insight enrich --sources dbip-lite` once after updating.
 
-**B5 note — RPKI (read 2026-11-13).** The VRPs come from rpki-client's
-public validator (`console.rpki-client.org/vrps.json`); the file carries no
-licence, and the site's front page was down (HTTP 503) when checked. The
-underlying data is each RIR's RPKI repository. ARIN's Resource
-Certification Relying Party Agreement (13 February 2023), Section 5:
+**B5 note — RPKI (researched 2026-11-13).** The VRPs come from
+rpki-client's public validator (`console.rpki-client.org/vrps.json`); the
+file carries no licence, and the site's front page was down (HTTP 503)
+when checked. The data underneath is each RIR's RPKI repository, and two
+of them have terms that reach a paid product.
 
-> "You may make available to any third party the information made
-> available through the ORCP Services so long as such use and disclosure
-> is solely for informational purposes, namely reporting, educational,
-> research, summary or statistical purposes. You are specifically
-> prohibited from disclosure or redistribution of the information made
-> available through the ORCP Services for network routing purposes, or for
-> any purpose that is reliant on, or has an expectation of, ongoing or
-> uninterrupted availability of the ORCP Services."
+*RIPE NCC — clear.* "RIPE NCC Certification Repository Terms and
+Conditions" (in effect from 13.11.2025), Article 3.1: "Users shall be
+permitted to download the Repository and to access and use the data
+contained therein, only in order to validate Certificates, CRLs and
+RPKI-signed objects, or for scientific research purposes. Download of the
+Repository, access to or use of the data contained therein for any other
+purpose, including but not limited to identification purposes,
+advertising, direct marketing, marketing research, or any other commercial
+purpose, for example selling the data or services based on the data or
+similar purposes, is strictly forbidden." A User is "anyone who downloads
+the Repository and/or accesses or uses the data contained therein" — so
+using data that reached us through rpki-client still counts.
 
-Two readings, not settled here: `rpki_status` in an IP-intelligence answer
-is informational (not used for routing) — or a paid service customers rely
-on daily is "a purpose reliant on … ongoing availability". We access
-rpki-client's output rather than ARIN's repository directly, which may
-mean the RPA binds rpki-client rather than us; that is also a reading.
-The resale profile already leaves `rpki_status` out. For the served
-product it is an operator decision (open). The other four RIRs' RPKI
-terms are unread.
+*ARIN — a gap, not a prohibition.* Relying Party Agreement (13 Feb 2023):
+Section 5 allows passing the information on "solely for informational
+purposes, namely reporting, educational, research, summary or statistical
+purposes" and forbids "network routing purposes, or … any purpose that is
+reliant on, or has an expectation of, ongoing or uninterrupted
+availability". Section 9 (added 26 Sep 2022) then permits machine-readable
+distribution "for networking routing purposes" if the recipient has an RPA
+or receives pass-through terms "at least as protective of ARIN" as
+Articles 5–7 and Sections 8(a)(b)(c)(f). (The first reading of this
+section on 2026-11-13 stopped before Section 9 — corrected here.) ARIN's
+own history fills in the intent: its 2019 announcement offered a separate
+"Redistributor RPA" "for purposes not covered in this standard RPA,
+including but not limited to distribution for real-time routing purposes";
+the 2022 announcement folded that into Section 9 for routing only. A paid
+IP-intelligence field is neither "informational" in the listed sense nor
+"routing" — the gap the Redistributor RPA used to cover. The Penn Law
+progress report (Yoo, NANOG 87, Feb 2023) marks its own sharing concern
+"Complete" after Section 9, but that concern was operators sharing data
+for routing, not commercial data products.
+
+*APNIC, LACNIC, AFRINIC:* not read yet.
+
+**Conclusion:** `rpki_status` in a paid product is forbidden for
+RIPE-region ROAs and uncovered for ARIN's. Not resolvable without
+permission (or a lawyer); under the operator's standing rule — unclear
+terms are switched off, not deleted — it belongs off in the product until
+then. Decision recorded as pending; the resale profile already omits it.
 
 ## Phase H — Computed by us
 
@@ -640,7 +663,7 @@ in a file that is sold:
 | `asn` | RouteViews (B6) | 🟢 CC BY 4.0, attribution must travel with the file |
 | `asn_name` | CAIDA (B3) | 🔴 — the AUA grants "a limited, non-exclusive, **non-transferable**, non-assignable, and terminable license to copy, modify, and use the data … No license is granted for any other purpose". Handing a copy to a buyer is not covered |
 | `asn_size_rank` | Computed from RouteViews | 🟢 (inherits RouteViews attribution) |
-| `rpki_status` | RPKI VRPs (B5) + RouteViews | 🔴 for now — ARIN's RPA limits onward disclosure to informational purposes and forbids any purpose "reliant on … ongoing or uninterrupted availability"; four RIRs unread (B5 note) |
+| `rpki_status` | RPKI VRPs (B5) + RouteViews | 🔴 — RIPE's repository terms forbid "selling the data or services based on the data"; ARIN's RPA covers informational and routing use, not this (B5 note) |
 | `cloud_provider`, `is_cloud` | Provider lists (D1–D9) | 🟡 |
 | `verified_bot`, `verified_bot_operator` | Operators' own lists (E1–E12) | 🟢 |
 | `special_purpose` | IANA (A6/A7) | 🟢 CC0 |
