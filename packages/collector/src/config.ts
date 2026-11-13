@@ -178,6 +178,11 @@
  * config.ts for why.
  */
 import {
+  MMDB_RECORD_FIELDS,
+  RESALE_DEFAULT_EXCLUDED_FIELDS,
+  RESALE_DEFAULT_DROP_COUNTRY_FALLBACK_RIRS,
+} from "./export/resale-profile";
+import {
   readConfigFile,
   parseListValue,
   validateAgainstKnown,
@@ -384,6 +389,20 @@ export interface CollectorConfig {
    * discovered geofeeds (`rdap-cache-purge.ts`).
    */
   rdapEnabled: boolean;
+  /**
+   * Where `cycle` publishes the resale `.mmdb` after each run (the copy that
+   * could be sold — `export/resale-profile.ts`, `docs/106`). Null/absent:
+   * not built. Off by default — set it once selling the file is decided.
+   * Use a directory of its own, not the served file's.
+   */
+  resaleMmdbDir: string | null;
+  /** `.mmdb` fields left out of the resale file. Default
+   * `"asn_name,rpki_status"`: CAIDA's licence is non-transferable (B3), and
+   * the RPKI terms (B5) are not read yet. */
+  resaleMmdbExcludeFields: string[];
+  /** RIRs whose registry-only `country` is left out of the resale file.
+   * Default `"ripencc"` (A2: RIPE's Copyright Statement). */
+  resaleMmdbDropCountryFallbackRirs: string[];
   /** Which form of the flattened `ip_intel` relation to maintain. Default "view". */
   ipIntelMode: "view" | "materialized" | "off";
   /** Whether each enrichment run ends by capturing a history baseline. Default false. */
@@ -425,6 +444,9 @@ const DEFAULTS = {
   disabledEnrichmentSources: [] as string[],
   bgpLiveEnabled: false,
   rdapEnabled: false,
+  resaleMmdbDir: null as string | null,
+  resaleMmdbExcludeFields: RESALE_DEFAULT_EXCLUDED_FIELDS,
+  resaleMmdbDropCountryFallbackRirs: RESALE_DEFAULT_DROP_COUNTRY_FALLBACK_RIRS,
   ipIntelMode: "view" as const,
   historyCaptureEnabled: false,
   mmdbHistoryFields: false,
@@ -466,6 +488,9 @@ export function loadCollectorConfig(): CollectorConfig {
       disabledEnrichmentSources: DEFAULTS.disabledEnrichmentSources,
       bgpLiveEnabled: DEFAULTS.bgpLiveEnabled,
       rdapEnabled: DEFAULTS.rdapEnabled,
+      resaleMmdbDir: DEFAULTS.resaleMmdbDir,
+      resaleMmdbExcludeFields: DEFAULTS.resaleMmdbExcludeFields,
+      resaleMmdbDropCountryFallbackRirs: DEFAULTS.resaleMmdbDropCountryFallbackRirs,
       ipIntelMode: DEFAULTS.ipIntelMode,
       historyCaptureEnabled: DEFAULTS.historyCaptureEnabled,
       mmdbHistoryFields: DEFAULTS.mmdbHistoryFields,
@@ -603,6 +628,25 @@ export function loadCollectorConfig(): CollectorConfig {
     DEFAULTS.bgpLiveEnabled,
   );
   const rdapEnabled = parseBooleanValue(file.obj["rdapEnabled"], "rdapEnabled", DEFAULTS.rdapEnabled);
+  const resaleDirRaw = parseStringValue(file.obj["resaleMmdbDir"], "resaleMmdbDir", "");
+  const resaleMmdbDir = resaleDirRaw.trim() === "" ? null : resaleDirRaw.trim();
+  // "none" means an explicitly empty list; absent means the default.
+  const resaleMmdbExcludeFields =
+    file.obj["resaleMmdbExcludeFields"] === undefined
+      ? DEFAULTS.resaleMmdbExcludeFields
+      : (validateAgainstKnown(
+          parseListValue(file.obj["resaleMmdbExcludeFields"], "resaleMmdbExcludeFields", "none"),
+          [...MMDB_RECORD_FIELDS],
+          "resaleMmdbExcludeFields",
+        ) ?? []);
+  const resaleMmdbDropCountryFallbackRirs =
+    file.obj["resaleMmdbDropCountryFallbackRirs"] === undefined
+      ? DEFAULTS.resaleMmdbDropCountryFallbackRirs
+      : (validateAgainstKnown(
+          parseListValue(file.obj["resaleMmdbDropCountryFallbackRirs"], "resaleMmdbDropCountryFallbackRirs", "none"),
+          KNOWN_SOURCES.map((s) => s.rir),
+          "resaleMmdbDropCountryFallbackRirs",
+        ) ?? []);
   const historyCaptureEnabled = parseBooleanValue(
     file.obj["historyCaptureEnabled"],
     "historyCaptureEnabled",
@@ -673,6 +717,9 @@ export function loadCollectorConfig(): CollectorConfig {
     disabledEnrichmentSources,
     bgpLiveEnabled,
     rdapEnabled,
+    resaleMmdbDir,
+    resaleMmdbExcludeFields,
+    resaleMmdbDropCountryFallbackRirs,
     sourcePath: file.sourcePath,
   };
 }

@@ -35,6 +35,21 @@ import { db, ipIntelState } from "@workspace/db";
 import { logger } from "@workspace/shared";
 import { loadCollectorConfig } from "../config";
 import { buildMmdb, type MmdbEntry, type MmdbValue } from "./mmdb-writer";
+import { applyResaleProfile, type ResaleOptions } from "./resale-profile";
+
+/** Which file to build. `standard` is the served file; `resale` is the copy
+ * that could be sold — see resale-profile.ts for what differs and why. */
+export type MmdbProfile = "standard" | "resale";
+
+/** The resale rules as configured — one place, so the export and the
+ * ATTRIBUTION.txt written beside it can't disagree. */
+export function resaleOptionsFromConfig(): ResaleOptions {
+  const cfg = loadCollectorConfig();
+  return {
+    excludeFields: cfg.resaleMmdbExcludeFields,
+    dropCountryFallbackRirs: cfg.resaleMmdbDropCountryFallbackRirs,
+  };
+}
 
 /** Columns carried into the file. Deliberately a subset: an .mmdb is read on
  * the hot path of somebody else's request, so it holds the facts a caller
@@ -66,6 +81,9 @@ interface IntelRow extends Record<string, unknown> {
    * row and would have to be denormalised misleadingly. */
   verified_bot: string | null;
   verified_bot_operator: string | null;
+  /** Read only so the resale profile can tell a registry-only country
+   * apart; never written into a record. */
+  rir: string | null;
   /** Only selected when `mmdbHistoryFields` is on — see that config option's
    * doc comment for why this is a manual, maturity-gated decision rather
    * than an always-on column. `undefined` (not queried) and `null` (queried,
@@ -135,7 +153,12 @@ export interface MmdbExportResult {
   fieldCounts: Record<string, number>;
 }
 
-export async function exportMmdb(options?: { databaseType?: string }): Promise<MmdbExportResult> {
+export async function exportMmdb(options?: {
+  databaseType?: string;
+  profile?: MmdbProfile;
+}): Promise<MmdbExportResult> {
+  const profile = options?.profile ?? "standard";
+  const resale = profile === "resale" ? resaleOptionsFromConfig() : null;
   const state = await ipIntelState();
   if (state === "off") {
     throw new Error(
@@ -206,7 +229,8 @@ export async function exportMmdb(options?: { databaseType?: string }): Promise<M
       SELECT i.network::text AS network, i.country, i.city, i.region, i.postal,
              i.latitude, i.longitude, i.geo_source, i.asn, i.asn_name, i.asn_size_rank,
              i.cloud_provider, i.is_cloud, i.is_anycast, i.is_threat, i.is_tor, i.is_vpn,
-             i.rpki_status, i.special_purpose, i.verified_bot, i.verified_bot_operator
+             i.rpki_status, i.special_purpose, i.verified_bot, i.verified_bot_operator,
+             i.rir
              ${historyColumn}
       FROM ip_intel i
       ${historyJoin}
@@ -216,6 +240,7 @@ export async function exportMmdb(options?: { databaseType?: string }): Promise<M
         scanned += page.rows.length;
         for (const row of page.rows) {
           const record = toRecord(row);
+          if (resale) applyResaleProfile(record, row, resale);
           // A prefix we know nothing about carries no information into the file;
           // including it would only grow the trie.
           if (Object.keys(record).length === 0) continue;
@@ -229,12 +254,16 @@ export async function exportMmdb(options?: { databaseType?: string }): Promise<M
     },
     { isolationLevel: "repeatable read" },
   );
-  logger.info({ scanned, kept: entries.length }, "Building .mmdb from ip_intel");
+  logger.info({ scanned, kept: entries.length, profile }, "Building .mmdb from ip_intel");
 
   const built = buildMmdb(entries, {
-    databaseType: options?.databaseType ?? "IP-Insight-Engine",
+    databaseType: options?.databaseType ?? (resale ? "IP-Insight-Engine-Resale" : "IP-Insight-Engine"),
     description: {
-      en: "IP-Insight-Engine — self-hosted IP intelligence built from free public sources",
+      en: resale
+        ? "IP-Insight-Engine resale build. Contains data from RouteViews (www.routeviews.org, CC BY 4.0), " +
+          "DB-IP (https://db-ip.com, CC BY 4.0) and GeoNames (https://www.geonames.org, CC BY 4.0) — " +
+          "full attribution in the ATTRIBUTION.txt shipped with this file."
+        : "IP-Insight-Engine — self-hosted IP intelligence built from free public sources",
     },
   });
 

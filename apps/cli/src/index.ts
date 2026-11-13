@@ -540,12 +540,21 @@ program
   )
   .requiredOption("--out <file>", "path to write the .mmdb to")
   .option("--type <name>", "database_type recorded in the file metadata")
-  .action(async (opts: { out: string; type?: string }) => {
+  .option(
+    "--profile <name>",
+    "standard (the served file) or resale (the copy that could be sold: without CAIDA ASN names, " +
+      "RIPE registry-only countries and unverified RPKI status — see docs/106)",
+    "standard",
+  )
+  .action(async (opts: { out: string; type?: string; profile: string }) => {
+    if (opts.profile !== "standard" && opts.profile !== "resale") {
+      throw new Error(`--profile must be "standard" or "resale", got "${opts.profile}"`);
+    }
     const { pool } = await import("@workspace/db");
     dbPoolLoaded = pool;
     const { writeFileSync } = await import("node:fs");
     const { exportMmdb } = await import("@workspace/collector/export/mmdb-export");
-    const result = await exportMmdb({ databaseType: opts.type });
+    const result = await exportMmdb({ databaseType: opts.type, profile: opts.profile });
     writeFileSync(opts.out, result.buffer);
     console.log(
       `Wrote ${opts.out}: ${(result.buffer.length / 1024 / 1024).toFixed(1)} MB, ` +
@@ -752,6 +761,13 @@ program
         "  (skipped without downloading; their geofeed rows are removed at the start of each enrich run)",
     );
     console.log(
+      `  resaleMmdbDir:         ${cfg.resaleMmdbDir ?? "(not set — no resale .mmdb is built)"}` +
+        (cfg.resaleMmdbDir
+          ? `  (built by cycle; excludes ${cfg.resaleMmdbExcludeFields.join(", ") || "no fields"}` +
+            `${cfg.resaleMmdbDropCountryFallbackRirs.length ? `, registry-only countries of ${cfg.resaleMmdbDropCountryFallbackRirs.join(", ")}` : ""})`
+          : ""),
+    );
+    console.log(
       `  bgpLiveEnabled:        ${cfg.bgpLiveEnabled}` +
         (cfg.bgpLiveEnabled ? "  (bgp-live run allowed — RIPE RIS Live)" : "  (bgp-live run refuses — RIPE RIS Live kept off, docs/106 G4)"),
     );
@@ -832,12 +848,17 @@ mmdb
   .option("--golden <file>", "JSON file of golden cases, replacing the built-in defaults")
   .option("--min-ratio <n>", "reject below this fraction of the previous file's prefix count (default 0.8)")
   .option("--retain <n>", "timestamped files to keep (default 5)")
-  .action(async (opts: { dir: string; type?: string; golden?: string; minRatio?: string; retain?: string }) => {
+  .option("--profile <name>", "standard or resale — resale also writes ATTRIBUTION.txt; give it its own --dir", "standard")
+  .action(async (opts: { dir: string; type?: string; golden?: string; minRatio?: string; retain?: string; profile: string }) => {
+    if (opts.profile !== "standard" && opts.profile !== "resale") {
+      throw new Error(`--profile must be "standard" or "resale", got "${opts.profile}"`);
+    }
     const { pool } = await import("@workspace/db");
     dbPoolLoaded = pool;
     const { publishMmdb } = await import("@workspace/collector/export/mmdb-publish");
     const r = await publishMmdb({
       dir: opts.dir,
+      profile: opts.profile,
       databaseType: opts.type,
       goldenSetPath: opts.golden,
       minPrefixRatio: opts.minRatio ? Number(opts.minRatio) : undefined,

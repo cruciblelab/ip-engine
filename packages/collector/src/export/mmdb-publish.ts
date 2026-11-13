@@ -33,7 +33,8 @@ import path from "node:path";
 import { eq, desc, and } from "drizzle-orm";
 import { db, mmdbPublishesTable } from "@workspace/db";
 import { logger } from "@workspace/shared";
-import { exportMmdb } from "./mmdb-export";
+import { exportMmdb, resaleOptionsFromConfig, type MmdbProfile } from "./mmdb-export";
+import { resaleAttributionText } from "./resale-profile";
 
 /** The symlink consumers point at. Repointed by rename, which is atomic — a
  * reader either follows the old target or the new one, never a half-written
@@ -67,6 +68,11 @@ export const DEFAULT_GOLDEN_SET: GoldenCase[] = [
 export interface PublishOptions {
   /** Directory holding the timestamped files and `current.mmdb`. */
   dir: string;
+  /** `resale` builds the copy that could be sold (resale-profile.ts) and
+   * writes ATTRIBUTION.txt beside it. Give it its own `dir`: the size and
+   * per-field checks compare against whatever `current.mmdb` in `dir` is,
+   * and the two profiles legitimately differ in fields. */
+  profile?: MmdbProfile;
   databaseType?: string;
   /** JSON file of `GoldenCase[]`, replacing the defaults above. */
   goldenSetPath?: string;
@@ -255,10 +261,14 @@ export async function publishMmdb(opts: PublishOptions): Promise<PublishResult> 
   if (!run) throw new Error("Failed to create mmdb_publishes row");
 
   const stamp = new Date().toISOString().replace(/[:.]/g, "-");
-  const candidate = path.join(opts.dir, `ip-insight-${stamp}.mmdb`);
+  const profile = opts.profile ?? "standard";
+  const candidate = path.join(
+    opts.dir,
+    profile === "resale" ? `ip-insight-resale-${stamp}.mmdb` : `ip-insight-${stamp}.mmdb`,
+  );
 
   try {
-    const built = await exportMmdb({ databaseType: opts.databaseType });
+    const built = await exportMmdb({ databaseType: opts.databaseType, profile });
     fs.writeFileSync(candidate, built.buffer);
 
     const checks = await validate(candidate, built.rows, built.fieldCounts, opts);
@@ -285,6 +295,15 @@ export async function publishMmdb(opts: PublishOptions): Promise<PublishResult> 
     }
 
     repointCurrent(opts.dir, candidate);
+    if (profile === "resale") {
+      // Rewritten on every publish, beside current.mmdb, so whatever is
+      // handed out carries the attribution matching the rules it was built
+      // with.
+      fs.writeFileSync(
+        path.join(opts.dir, "ATTRIBUTION.txt"),
+        resaleAttributionText(resaleOptionsFromConfig(), new Date()),
+      );
+    }
     await db
       .update(mmdbPublishesTable)
       .set({ ...common, status: "published" })

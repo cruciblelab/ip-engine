@@ -155,9 +155,28 @@ async function runCycleLocked(opts: CycleOptions): Promise<void> {
   // failed RIR download is a reason to enrich anyway, not to skip it.
   const enrich = await runPhase("enrich", () => runEnrich(enrichIds));
 
+  // The resale .mmdb (docs/106, "Selling the .mmdb itself"), only when a
+  // directory is configured — i.e. once selling the file has been decided.
+  // After enrich, which ends by refreshing ip_intel, so it is built from
+  // today's data. A rejected build keeps the previous file serving and is
+  // reported as a failure like the other phases.
+  let resale: PhaseOutcome | null = null;
+  if (cfg.resaleMmdbDir) {
+    const dir = cfg.resaleMmdbDir;
+    resale = await runPhase("resale-mmdb", async () => {
+      const { publishMmdb } = await import("@workspace/collector/export/mmdb-publish");
+      const r = await publishMmdb({ dir, profile: "resale" });
+      if (r.status !== "published") {
+        const failed = r.checks.filter((c) => !c.ok).map((c) => `${c.name}: ${c.detail}`);
+        throw new Error(`resale .mmdb rejected — ${failed.join("; ")}`);
+      }
+    });
+  }
+
   const failures = [
     ...(collect.ok ? [] : [`collect: ${collect.error}`]),
     ...(enrich.ok ? [] : [`enrich: ${enrich.error}`]),
+    ...(resale && !resale.ok ? [`resale-mmdb: ${resale.error}`] : []),
   ];
   const durationMs = Date.now() - startedAt;
 

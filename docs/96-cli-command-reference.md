@@ -55,16 +55,18 @@ Dumps ingested IP/ASN blocks (`ip_blocks`/`asn_blocks`, not the enriched
 `ip_intel`). Streams to stdout unless `--out` or config's `exportDir` is set.
 Read-only.
 
-### `export-mmdb --out <file> [--type <name>]`
+### `export-mmdb --out <file> [--type <name>] [--profile standard|resale]`
 Writes `ip_intel` to a standalone `.mmdb` file at the given path — no
 publish/validation/promotion, just the raw build. Reads `ip_intel` only
 (run `flatten` first if it's stale). This is the low-level primitive;
 **`mmdb publish` (below) is the one to actually use for a served file**,
 since it adds validation and safe promotion on top of the same build.
+`--profile resale` builds the copy that could be sold instead — see
+`mmdb publish`.
 
 ## Serving the data
 
-### `mmdb publish --dir <dir> [--type][--golden][--min-ratio][--retain]`
+### `mmdb publish --dir <dir> [--type][--golden][--min-ratio][--retain][--profile]`
 Builds a new `.mmdb`, validates it two ways — against a golden set of known
 IPs (real MaxMind reader, default 4 addresses baked into the code, override
 with `--golden <file>`) and against the previously-served file's prefix
@@ -78,6 +80,19 @@ Touches: reads `ip_intel`, writes timestamped `.mmdb` files + the
 the command that caught both real bugs found this session (the NTT geofeed
 width bug and the trie subdivide bug) — it's the safety net, not a
 formality.
+
+**`--profile resale`** builds the file that could be *sold* as a copy, as
+opposed to the one the service answers from (`docs/106`, "Selling the
+`.mmdb` itself"): it leaves out the fields in `resaleMmdbExcludeFields`
+(default `asn_name,rpki_status` — CAIDA's licence is non-transferable, the
+RPKI terms are unread) and registry-only countries of the RIRs in
+`resaleMmdbDropCountryFallbackRirs` (default `ripencc`), and writes
+`ATTRIBUTION.txt` next to `current.mmdb` with the RouteViews, DB-IP and
+GeoNames credits a buyer must receive. Use a directory of its own: the
+checks compare against whatever `current.mmdb` is already in `--dir`.
+Set `resaleMmdbDir` in the config and `cycle` builds it after every run —
+which is how it gets refreshed daily once selling is decided. Unset (the
+default), nothing is built.
 
 ### `mmdb rollback --dir <dir>`
 Points `current.mmdb` back at the previously-published file. For a

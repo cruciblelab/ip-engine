@@ -125,7 +125,7 @@ for its phase, not a conclusion.
 | B2 | RIPE RIS whois IPv6 (`ris-whois-ipv6`) | same | same | ⏸ same [🔴] |
 | B3 | CAIDA AS-organizations (`caida-asn-names`) | CAIDA AUA, attribution | AUA PDF read directly, 2026-08-24; public AUA page re-read 2026-11-08 and 2026-11-13 | 🟡 for API answers; 🔴 inside a sold `.mmdb` (licence is "non-transferable", copy/modify/use only) — see "Selling the `.mmdb` itself" |
 | B4 | RIPE `asn.txt` (`ripe-asn-names`) | Unresolved | RIPE Copyright Statement, quoted, 2026-08-24 | ⏸ off by default since 2026-11-08 [🔴] — see Phase 1 log |
-| B5 | RPKI VRPs (`rpki-vrp`) | No terms found | rpki-client site + RFC 6480 purpose | 🟡 |
+| B5 | RPKI VRPs (`rpki-vrp`) | Validated output of all five RIRs' RPKI; ARIN's Relying Party Agreement restricts onward disclosure | ARIN RPA (13 Feb 2023) read 2026-11-13; other four RIRs' RPKI terms not yet read; rpki-client console returned 503 | 🟠 — see "B5 note" |
 
 | B6 | RouteViews RIBs (`routeviews-rib-ipv4`, `routeviews-rib-ipv6`) — **default BGP source since 2026-11-08** | CC BY 4.0 + RouteViews Commercial Terms of Use: statement + link, logo, boilerplate | `routeviews.org/routeviews/licenses/` read first-hand 2026-11-08, quoted in `docs/103` | 🟡 two wording conflicts on RouteViews' own site (below) |
 
@@ -259,6 +259,30 @@ from `ip_intel`. Checked what reaches it:
   On an existing database: DB-IP rows already pruned under live rows stay
   missing until DB-IP is ingested again — run
   `ip-insight enrich --sources dbip-lite` once after updating.
+
+**B5 note — RPKI (read 2026-11-13).** The VRPs come from rpki-client's
+public validator (`console.rpki-client.org/vrps.json`); the file carries no
+licence, and the site's front page was down (HTTP 503) when checked. The
+underlying data is each RIR's RPKI repository. ARIN's Resource
+Certification Relying Party Agreement (13 February 2023), Section 5:
+
+> "You may make available to any third party the information made
+> available through the ORCP Services so long as such use and disclosure
+> is solely for informational purposes, namely reporting, educational,
+> research, summary or statistical purposes. You are specifically
+> prohibited from disclosure or redistribution of the information made
+> available through the ORCP Services for network routing purposes, or for
+> any purpose that is reliant on, or has an expectation of, ongoing or
+> uninterrupted availability of the ORCP Services."
+
+Two readings, not settled here: `rpki_status` in an IP-intelligence answer
+is informational (not used for routing) — or a paid service customers rely
+on daily is "a purpose reliant on … ongoing availability". We access
+rpki-client's output rather than ARIN's repository directly, which may
+mean the RPA binds rpki-client rather than us; that is also a reading.
+The resale profile already leaves `rpki_status` out. For the served
+product it is an operator decision (open). The other four RIRs' RPKI
+terms are unread.
 
 ## Phase H — Computed by us
 
@@ -616,7 +640,7 @@ in a file that is sold:
 | `asn` | RouteViews (B6) | 🟢 CC BY 4.0, attribution must travel with the file |
 | `asn_name` | CAIDA (B3) | 🔴 — the AUA grants "a limited, non-exclusive, **non-transferable**, non-assignable, and terminable license to copy, modify, and use the data … No license is granted for any other purpose". Handing a copy to a buyer is not covered |
 | `asn_size_rank` | Computed from RouteViews | 🟢 (inherits RouteViews attribution) |
-| `rpki_status` | RPKI VRPs (B5) + RouteViews | ⚪ **unknown — B5 terms not yet read.** Must be checked before any sale |
+| `rpki_status` | RPKI VRPs (B5) + RouteViews | 🔴 for now — ARIN's RPA limits onward disclosure to informational purposes and forbids any purpose "reliant on … ongoing or uninterrupted availability"; four RIRs unread (B5 note) |
 | `cloud_provider`, `is_cloud` | Provider lists (D1–D9) | 🟡 |
 | `verified_bot`, `verified_bot_operator` | Operators' own lists (E1–E12) | 🟢 |
 | `special_purpose` | IANA (A6/A7) | 🟢 CC0 |
@@ -645,6 +669,37 @@ daily build combining operator geofeeds, ASN, RPKI status, verified bots,
 cloud, Tor and threat flags, with the source of every location stated.
 No market data was gathered on what that sells for; any price would be a
 guess.
+
+**Built (2026-11-13), off until selling is decided.** `mmdb publish
+--profile resale` produces exactly that file: the same build as the served
+one (`export/resale-profile.ts` applies the rules to each record), with
+`ATTRIBUTION.txt` written beside it. Everything is config:
+`resaleMmdbExcludeFields` (default `asn_name,rpki_status`),
+`resaleMmdbDropCountryFallbackRirs` (default `ripencc`), and
+`resaleMmdbDir` — once set, `cycle` rebuilds the resale file after every
+run, so a daily cycle means a daily file. When B5 is read and clean,
+removing `rpki_status` from the exclusion list puts it back; the same for
+`asn_name` if CAIDA ever grants redistribution in writing.
+
+Verified end to end on real data (sandbox, 2026-11-13; all five RIR files,
+RouteViews, CAIDA, DB-IP, 185 geofeeds; `ip_intel` materialized at 8.1M
+rows). Both profiles built from the same `ip_intel`; per-field counts:
+
+| Field | Standard | Resale |
+|---|---|---|
+| prefixes | 7,781,645 | 7,746,542 |
+| `asn_name` | 7,426,459 | 0 |
+| `rpki_status` | 7,433,631 | 0 |
+| `country`, `geo_source` | 7,779,462 | 7,616,006 (−163,456 RIPE registry-only) |
+| every other field | identical | identical |
+
+Read back with the MaxMind reader: `46.104.60.90` keeps country, city,
+location, ASN and size rank, loses `asn_name`/`rpki_status`; `2001:600::`
+(RIPE, registry-only country) keeps its ASN and loses the country;
+`2001:7fa:0:1::` (APNIC, registry-only) keeps its country. A successful
+publish wrote `ATTRIBUTION.txt` beside `current.mmdb`. The RouteViews
+*logo* cannot travel in a text file — whatever page sells the file has to
+show it.
 
 ## Appendix — C20: the 178 RIPE-scan geofeeds, individually
 
