@@ -1,3 +1,7 @@
+> **Parked 2026-11-14.** The engine is parked while other product
+> directions are tested — see the engine repo's
+> `docs/107-parked-status-2026-11-14.md`. Nothing below is in progress.
+
 # ipreadout-service — plan
 
 Started fresh 2026-08-25. An earlier version of this file (with its

@@ -91,6 +91,20 @@ import { isLookupFeatureEnabled, loadLookupConfig } from "../config";
  * collector config). A hardcoded "bgp-ris" here would have kept naming RIPE
  * RIS after the switch: false provenance in a field customers read.
  */
+/**
+ * Whether `rpki_roas` holds any data. Cached briefly: it changes only when an
+ * enrich run loads or removes the RPKI source, and checking per lookup would
+ * add a query to every request.
+ */
+let rpkiLoadedCache: { value: boolean; at: number } | null = null;
+const RPKI_LOADED_TTL_MS = 5 * 60 * 1000;
+async function rpkiDataLoaded(): Promise<boolean> {
+  if (rpkiLoadedCache && Date.now() - rpkiLoadedCache.at < RPKI_LOADED_TTL_MS) return rpkiLoadedCache.value;
+  const { rows } = await db.execute<{ loaded: boolean }>(sql`SELECT EXISTS (SELECT 1 FROM rpki_roas) AS loaded`);
+  rpkiLoadedCache = { value: Boolean(rows[0]?.loaded), at: Date.now() };
+  return rpkiLoadedCache.value;
+}
+
 type AsnSource = "bgp-ris" | "bgp-routeviews";
 
 function asnSourceOf(sourceId: string): AsnSource {
@@ -1159,7 +1173,9 @@ export async function lookupIp(rawIp: string): Promise<IpLookupResult> {
       );
       rpki.status = ok ? "valid" : "invalid";
     }
-  } else if (wantRpki && asnEntry?.asnNumber) {
+  } else if (wantRpki && asnEntry?.asnNumber && (await rpkiDataLoaded())) {
+    // Only with RPKI data actually loaded: an empty table means "unknown",
+    // not "this prefix has no ROA" (same rule as ip_intel's rpki_status).
     rpki.status = "not-found";
   }
 

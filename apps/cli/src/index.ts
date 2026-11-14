@@ -758,7 +758,7 @@ program
     );
     console.log(
       `  disabledEnrichmentSources: ${cfg.disabledEnrichmentSources.length ? cfg.disabledEnrichmentSources.join(", ") : "(none)"}` +
-        "  (skipped without downloading; their geofeed rows are removed at the start of each enrich run)",
+        "  (skipped without downloading; their geofeed/RPKI rows are removed at the start of each enrich run)",
     );
     console.log(
       `  resaleMmdbDir:         ${cfg.resaleMmdbDir ?? "(not set — no resale .mmdb is built)"}` +

@@ -588,6 +588,7 @@ needs a code change to reverse.
 | `rdapEnabled` | `false` | G1 live RDAP (abuse contacts, network names, geofeed discovery) | RIPE DB terms "defensible, not airtight"; abuse contacts can be personal data; live collection |
 | `bgpLiveEnabled` | `false` | G4 RIS Live (`bgp-live run`) | RIPE RIS data; live collection |
 | `historyCaptureEnabled` | `false` | History captures after each `enrich` | Long-running collection; never in the `.mmdb` (`mmdbHistoryFields` stays `false`) |
+| `disabledEnrichmentSources` += `rpki-vrp`, `lookupFeatures` without `rpki` | (2026-11-14) | B5 RPKI | RIPE's repository terms forbid "services based on the data"; ARIN's RPA doesn't cover a paid product (B5 note) |
 
 **`disabledEnrichmentSources`** (new): comma-separated registry ids. A
 listed source is skipped without downloading — even when named in

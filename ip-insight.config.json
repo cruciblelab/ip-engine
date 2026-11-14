@@ -24,7 +24,7 @@
   "ipIntelMode": "materialized",
   "historyCaptureEnabled": false,
   "mmdbHistoryFields": false,
-  "lookupFeatures": "all",
+  "lookupFeatures": "dbip_lite,asn,network_status,geo,reverse_dns,threat,usage_type,cloud_provider,anycast,special_purpose,asn_reach,anonymity,abuse_contact,risk,connection_type,verified_bot,neighborhood,network_stability",
   "cacheSize": 50000,
   "cacheTtlMinutes": 360,
   "reverseDnsTimeoutMs": 800,
@@ -37,7 +37,7 @@
   "asnNamePrimary": "caida",
   "asnNameFallbackEnabled": false,
   "bgpOriginSource": "routeviews",
-  "disabledEnrichmentSources": "lacnic-whois-city",
+  "disabledEnrichmentSources": "lacnic-whois-city,rpki-vrp",
   "bgpLiveEnabled": false,
   "rdapEnabled": false
 }

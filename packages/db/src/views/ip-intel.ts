@@ -103,6 +103,11 @@ SELECT
   -- internet as hijacked. "no ROA" is 'not-found', which is normal.
   CASE
     WHEN bgp.asn IS NULL THEN NULL
+    -- No RPKI data loaded at all (source disabled, or never run): unknown,
+    -- not 'not-found'. Without this every prefix on the internet read as
+    -- "has no ROA" — a false claim, found on 2026-11-13 in a build made
+    -- with an empty rpki_roas. Evaluated once per query (an initplan).
+    WHEN NOT EXISTS (SELECT 1 FROM rpki_roas) THEN NULL
     WHEN NOT roa.covering THEN 'not-found'
     WHEN roa.authorized THEN 'valid'
     ELSE 'invalid'
@@ -264,6 +269,17 @@ LEFT JOIN LATERAL (
  * of drift needed catching in general, not patching for this one column.
  */
 const IP_INTEL_SELECT_HASH = createHash("sha256").update(IP_INTEL_SELECT).digest("hex");
+
+/**
+ * The SELECT behind `ip_intel`, for tests that need to query the
+ * definition without touching the real relation. Tests must never call
+ * `ensureIpIntel()`: on a database where `ip_intel` is materialized, that
+ * replaces hours of build work. Wrap this in a TEMP VIEW inside a
+ * transaction that is rolled back instead.
+ */
+export function ipIntelSelectSql(): string {
+  return IP_INTEL_SELECT;
+}
 
 /** Whether `ip_intel` currently exists, and in which form. */
 export async function ipIntelState(): Promise<IpIntelMode> {

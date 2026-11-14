@@ -14,12 +14,18 @@ import { KNOWN_ENRICHMENT_SOURCES, type EnrichmentSourceConfig } from "./enrichm
  * there would silently miss rows. Those are reported instead of guessed at.
  */
 export function isFullyPurgeable(source: EnrichmentSourceConfig): boolean {
-  return source.kind === "geofeed" && source.parser !== "digitalocean-geofeed-csv";
+  if (source.kind === "geofeed") return source.parser !== "digitalocean-geofeed-csv";
+  // rpki-vrp writes only rpki_roas, tagged `source.source ?? source.id`
+  // (ingestRpkiVrp) — the tag purgeDisabledSourceRows deletes by.
+  if (source.kind === "rpki") return true;
+  return false;
 }
 
 export interface DisabledPurgeResult {
   /** Rows removed from `geofeed_ranges`. */
   deletedGeofeedRows: number;
+  /** Rows removed from `rpki_roas`. */
+  deletedRpkiRows: number;
   /** Disabled ids whose earlier data may still sit in some table. */
   notFullyPurged: string[];
 }
@@ -31,7 +37,7 @@ export interface DisabledPurgeResult {
  * config edit, and its next run downloads the data again.
  */
 export async function purgeDisabledSourceRows(ids: string[]): Promise<DisabledPurgeResult> {
-  if (ids.length === 0) return { deletedGeofeedRows: 0, notFullyPurged: [] };
+  if (ids.length === 0) return { deletedGeofeedRows: 0, deletedRpkiRows: 0, notFullyPurged: [] };
   const result = await db.execute<{ deleted: number }>(sql`
     WITH removed AS (
       DELETE FROM geofeed_ranges
@@ -43,9 +49,26 @@ export async function purgeDisabledSourceRows(ids: string[]): Promise<DisabledPu
     )
     SELECT count(*)::int AS deleted FROM removed
   `);
+  const rpkiTags = KNOWN_ENRICHMENT_SOURCES.filter((s) => s.kind === "rpki" && ids.includes(s.id)).map(
+    (s) => s.source ?? s.id,
+  );
+  let deletedRpkiRows = 0;
+  if (rpkiTags.length > 0) {
+    const r = await db.execute<{ deleted: number }>(sql`
+      WITH removed AS (
+        DELETE FROM rpki_roas WHERE source IN (${sql.join(
+          rpkiTags.map((t) => sql`${t}`),
+          sql`, `,
+        )})
+        RETURNING 1
+      )
+      SELECT count(*)::int AS deleted FROM removed
+    `);
+    deletedRpkiRows = r.rows[0]?.deleted ?? 0;
+  }
   const notFullyPurged = ids.filter((id) => {
     const s = KNOWN_ENRICHMENT_SOURCES.find((k) => k.id === id);
     return !s || !isFullyPurgeable(s);
   });
-  return { deletedGeofeedRows: result.rows[0]?.deleted ?? 0, notFullyPurged };
+  return { deletedGeofeedRows: result.rows[0]?.deleted ?? 0, deletedRpkiRows, notFullyPurged };
 }

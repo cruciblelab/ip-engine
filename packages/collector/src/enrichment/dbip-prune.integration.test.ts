@@ -70,37 +70,40 @@ describe.skipIf(!hasDb)("live-discovered geofeeds stay out of the customer data"
     expect(rows.map((r) => r.city)).toEqual(["DBIP-UNDER-LIVE"]);
   });
 
+  // Queried through a rolled-back TEMP VIEW of the ip_intel definition, never
+  // the real ip_intel — see test-support/scratch-ip-intel.ts for why.
   it("ip_intel answers from DB-IP under the live row and from the bulk geofeed beside it", async () => {
-    const { db, ensureIpIntel } = await import("@workspace/db");
     const { sql } = await import("drizzle-orm");
-    await ensureIpIntel("view");
+    const { withScratchIpIntel } = await import("../test-support/scratch-ip-intel");
 
-    const at = async (ip: string) => {
-      const { rows } = await db.execute<{ network: string; city: string | null; geo_source: string | null }>(sql`
-        SELECT network::text AS network, city, geo_source FROM ip_intel
-        WHERE network >>= ${ip}::inet ORDER BY masklen(network) DESC LIMIT 1
-      `);
-      return rows[0];
-    };
+    const [underLive, underBulk] = await withScratchIpIntel(async (tx) => {
+      const at = async (ip: string) => {
+        const { rows } = await tx.execute<{ city: string | null }>(sql`
+          SELECT city FROM ip_intel_scratch
+          WHERE network >>= ${ip}::inet ORDER BY masklen(network) DESC LIMIT 1
+        `);
+        return rows[0];
+      };
+      return [await at("203.0.113.5"), await at("203.0.113.200")];
+    });
 
-    const underLive = await at("203.0.113.5");
     expect(underLive?.city).toBe("DBIP-UNDER-LIVE");
-    expect(underLive?.city).not.toBe("LIVE-CITY");
-
-    const underBulk = await at("203.0.113.200");
     expect(underBulk?.city).toBe("BULK-CITY");
   });
 
-  it("gives the live row no base row of its own in ip_intel", async () => {
-    const { db } = await import("@workspace/db");
+  it("gives the live row's answer no row in ip_intel", async () => {
     const { sql } = await import("drizzle-orm");
+    const { withScratchIpIntel } = await import("../test-support/scratch-ip-intel");
     // The live /25 still exists as a DB-IP range, so a base row for that
     // prefix is expected — what must not happen is any row carrying the
     // live geofeed's answer.
-    const { rows } = await db.execute<{ n: number }>(sql`
-      SELECT count(*)::int AS n FROM ip_intel
-      WHERE network <<= ${BLOCK}::inet AND city = 'LIVE-CITY'
-    `);
-    expect(rows[0]?.n).toBe(0);
+    const n = await withScratchIpIntel(async (tx) => {
+      const { rows } = await tx.execute<{ n: number }>(sql`
+        SELECT count(*)::int AS n FROM ip_intel_scratch
+        WHERE network <<= ${BLOCK}::inet AND city = 'LIVE-CITY'
+      `);
+      return rows[0]?.n;
+    });
+    expect(n).toBe(0);
   });
 });

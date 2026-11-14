@@ -461,7 +461,10 @@ async function purgeDisabledSources(job: ActiveJob): Promise<void> {
   const disabled = loadCollectorConfig().disabledEnrichmentSources;
   if (disabled.length === 0) return;
   try {
-    const { deletedGeofeedRows, notFullyPurged } = await purgeDisabledSourceRows(disabled);
+    const { deletedGeofeedRows, deletedRpkiRows, notFullyPurged } = await purgeDisabledSourceRows(disabled);
+    if (deletedRpkiRows > 0) {
+      logger.info({ disabled, deletedRpkiRows }, "Removed RPKI data of a source disabled in config");
+    }
     if (deletedGeofeedRows > 0) {
       logger.info({ disabled, deletedGeofeedRows }, "Removed geofeed rows of sources disabled in config");
       const dbipRuns = job.sources.some((s) => s.config.id === "dbip-lite") && !disabled.includes("dbip-lite");
